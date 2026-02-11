@@ -1,20 +1,29 @@
-import { logEvent } from "@/lib/logger/logEvent";
+import { track } from "@/lib/logger/track";
 
 export default function Home() {
   async function handleClick() {
     "use server";
-
-    await logEvent({
-      ts: Date.now(),
-      page: "home",
-      type: "test_click",
-      meta: { test: true },
-    });
+    await track(
+      {
+        phase: "pre",
+        taskSetId: "A",
+        taskVersion: "A",
+        trialId: "t000",
+        strategy: "misleading",
+        flowId: "misleading_01",
+        variant: "A",
+      },
+      {
+        page: "product",
+        type: "button_click",
+        payload: { buttonId: "home.test" },
+      }
+    );
   }
 
   return (
     <form action={handleClick}>
-      <button type="submit">テストログ保存</button>
+      <button type="submit">track() テスト</button>
     </form>
   );
 }
