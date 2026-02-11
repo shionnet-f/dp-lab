@@ -1,5 +1,20 @@
+import { logEvent } from "@/lib/logger/logEvent";
+
 export default function Home() {
+  async function handleClick() {
+    "use server";
+
+    await logEvent({
+      ts: Date.now(),
+      page: "home",
+      type: "test_click",
+      meta: { test: true },
+    });
+  }
+
   return (
-    <div className="rounded-xl bg-black p-4   text-white">tailwind ok</div>
+    <form action={handleClick}>
+      <button type="submit">テストログ保存</button>
+    </form>
   );
 }
