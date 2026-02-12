@@ -72,3 +72,10 @@ meta/payload の入力型を Prisma.InputJsonValue に統一した。
 - track(trialMeta, event) を追加し、meta.trial に条件ラベルを必ず付与して保存する。
 - Studioで EventLog の増加と meta.trial の格納を確認。
 - 以降、教育前後（pre/post）・AA’BB’・flowId/variant 単位で集計可能。
+
+## Commit 04: URLからtrialメタ情報を生成（getTrialMeta）
+
+- trialMeta をUI側に直書きしないため、params/searchParamsから TrialMeta を組み立てる getTrialMeta を追加。
+- strategy/flowId/variant は暫定で searchParams から付与（後で trialConfig に置換予定）。
+- 誤った条件でログが蓄積するのを防ぐため、値が不正/欠落なら例外で停止する方針とした。
+- Studioで meta.trial の格納を確認。

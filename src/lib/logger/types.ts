@@ -2,7 +2,7 @@ import { Prisma } from "@prisma/client";
 
 export type Phase = "pre" | "post";
 export type TaskSetId = "A" | "B";
-export type TaskVersion = "A" | "A'" | "B" | "B'";
+export type TaskVersion = "A1" | "A2" | "B1" | "B2";
 export type Strategy = "misleading" | "omission" | "pressure" | "obstruction";
 export type Variant = "A" | "B";
 
