@@ -79,3 +79,44 @@ meta/payload の入力型を Prisma.InputJsonValue に統一した。
 - strategy/flowId/variant は暫定で searchParams から付与（後で trialConfig に置換予定）。
 - 誤った条件でログが蓄積するのを防ぐため、値が不正/欠落なら例外で停止する方針とした。
 - Studioで meta.trial の格納を確認。
+
+## Commit 05: trialConfig導入による条件付与の一元化
+
+### 背景
+
+Commit 04 では、trialMeta を URL の params / searchParams から生成する仕組みを導入した。
+しかし、strategy / flowId / variant がクエリパラメータに依存しており、
+本番実験としては不安定な構造であった。
+
+### 変更内容
+
+- trialId をキーに strategy / flowId / variant を付与する `trialConfig` を導入
+- getTrialMeta から searchParams 依存を撤廃
+- URLは `/[phase]/[taskSetId]/[taskVersion]/[trialId]/product` のみで動作
+- 不正な trialId の場合は例外で停止する設計を維持
+
+### 設計意図
+
+- 実験条件の真実源を URL + trialConfig に統一
+- クエリ改変による誤条件ログの蓄積を防止
+- 将来的な条件追加・順序制御を config 側で一元管理できる構造へ移行
+
+### 動作確認
+
+- クエリ無しでアクセス可能
+- URLに異なるクエリを付与しても trialMeta は変化しない
+- Prisma Studio にて `meta.trial` に以下が保存されることを確認
+
+```json
+{
+  "trial": {
+    "phase": "pre",
+    "taskSetId": "A",
+    "taskVersion": "A1",
+    "trialId": "t000",
+    "strategy": "misleading",
+    "flowId": "misleading_01",
+    "variant": "A"
+  }
+}
+```

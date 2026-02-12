@@ -3,38 +3,16 @@ import { track } from "@/lib/logger/track";
 
 type Props = {
     params:
-    | {
-        phase: string;
-        taskSetId: string;
-        taskVersion: string;
-        trialId: string;
-    }
-    | Promise<{
-        phase: string;
-        taskSetId: string;
-        taskVersion: string;
-        trialId: string;
-    }>;
-    searchParams?:
-    | {
-        strategy?: string;
-        flowId?: string;
-        variant?: string;
-    }
-    | Promise<{
-        strategy?: string;
-        flowId?: string;
-        variant?: string;
-    }>;
+    | { phase: string; taskSetId: string; taskVersion: string; trialId: string }
+    | Promise<{ phase: string; taskSetId: string; taskVersion: string; trialId: string }>;
 };
 
-export default async function ProductPage({ params, searchParams }: Props) {
+export default async function ProductPage({ params }: Props) {
     const p = await params;
-    const sp = (await searchParams) ?? {};
 
     async function handleClick() {
         "use server";
-        const trial = getTrialMeta(p, sp);
+        const trial = getTrialMeta(p);
 
         await track(trial, {
             page: "product",
@@ -49,8 +27,6 @@ export default async function ProductPage({ params, searchParams }: Props) {
 
             <div className="text-sm text-gray-600 break-words">
                 URL params: {JSON.stringify(p)}
-                <br />
-                searchParams: {JSON.stringify(sp)}
             </div>
 
             <form action={handleClick}>
