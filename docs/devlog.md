@@ -120,3 +120,65 @@ Commit 04 では、trialMeta を URL の params / searchParams から生成す�
   }
 }
 ```
+
+## Commit 06: 中立checkout実装と操作ログ取得の安定化
+
+### 目的
+
+DPを適用する前に、中立なcheckoutフローを1本通し、
+
+- 配送方法変更
+- オプション変更
+- 確定操作
+
+の各行動が正しく保存されることを確認する。
+
+本commitはUIの完成を目的とするものではなく、
+
+> 実験に必要な「操作ログの取得基盤」を完成させること
+
+を主目的とする。
+
+---
+
+### 実装内容
+
+#### 1. checkoutページの作成
+
+`/[phase]/[taskSetId]/[taskVersion]/[trialId]/checkout`
+
+- shipping（radio）
+- addon（toggle）
+- 合計表示
+- 次へ（submit）
+
+DPは未適用。
+初期値は中立（通常配送 / オプションOFF）。
+
+---
+
+#### 2. option_change の取得
+
+配送方法およびオプション変更時に `option_change` を記録。
+
+payloadには以下を保存：
+
+- `field`
+- `value`
+
+これにより、
+
+- 途中変更履歴の保持
+- 最終状態の復元
+- 再検討行動の分析
+
+が可能となる。
+
+例：
+
+```json
+{
+  "field": "shipping",
+  "value": "express"
+}
+```

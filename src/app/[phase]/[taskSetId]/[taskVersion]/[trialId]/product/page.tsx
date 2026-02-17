@@ -2,6 +2,7 @@ import DetailModal from "@/app/components/DetailModal";
 import { products6 } from "@/config/products";
 import { getTrialMeta } from "@/lib/logger/getTrialMeta";
 import { track } from "@/lib/logger/track";
+import Link from "next/link";
 
 type Props = {
     params:
@@ -98,13 +99,18 @@ export default async function ProductPage({ params }: Props) {
                                 </DetailModal>
                             </div>
 
-                            <form action={logSubmitSelect.bind(null, product.id)}>
-                                <button
-                                    type="submit"
-                                    className="w-full rounded bg-black px-3 py-2 text-white"
+                            <form
+                                action={async () => {
+                                    "use server";
+                                    await logSubmitSelect(product.id);
+                                }}
+                            >
+                                <Link
+                                    href={`/${p.phase}/${p.taskSetId}/${p.taskVersion}/${p.trialId}/checkout?productId=${product.id}`}
+                                    className="block w-full rounded bg-black px-3 py-2 text-center text-white"
                                 >
                                     この商品を選ぶ
-                                </button>
+                                </Link>
                             </form>
                         </div>
                     );

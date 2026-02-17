@@ -21,15 +21,6 @@ export default function DetailModal({
 }: Props) {
     const dialogId = useId();
 
-    // Escで閉じた場合
-    useEffect(() => {
-        const onKeyDown = (e: KeyboardEvent) => {
-            if (e.key === "Escape") onClose?.();
-        };
-        window.addEventListener("keydown", onKeyDown);
-        return () => window.removeEventListener("keydown", onKeyDown);
-    }, [onClose]);
-
     return (
         <>
             <button
@@ -63,7 +54,6 @@ export default function DetailModal({
                             onClick={() => {
                                 const el = document.getElementById(dialogId) as HTMLDialogElement | null;
                                 el?.close();
-                                onClose?.();
                             }}
                         >
                             閉じる
