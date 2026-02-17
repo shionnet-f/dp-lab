@@ -1,36 +1,82 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# dp-lab
 
-## Getting Started
+Deceptive Patterns（DP）がユーザーの意思決定に与える影響を、
+操作ログに基づいて分析するための実験用Webアプリケーション。
 
-First, run the development server:
+本プロジェクトは「UIを作ること」ではなく、
+**観測可能な実験装置を設計・実装すること**を目的としている。
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+---
+
+## 実験概要
+
+EC購入フローに複数のUI条件（中立 / DP条件）を設定し、
+ユーザー行動の変化をログから比較分析する。
+
+### 実験デザイン
+
+- 条件：中立フローを基準にDP差分を実装
+- 比較：教育前後（pre/post）および A/B（同一戦略内差分）
+- 保存：各操作を `EventLog` に保存し、試行単位で `TrialSummary` に要約（予定）
+
+### 主な計測指標
+
+- 確認行動（内訳展開、terms閲覧など）
+- 不適正行動（重要情報未確認での確定など）
+- 所要時間・戻り・変更断念
+
+---
+
+## ダークパターンの分類（欧州委員会が示す類型化を参考）
+
+1. **Misleading**：印象操作・強調による誤認誘導
+2. **Omission**：重要情報の可視性低下
+3. **Pressure**：初期値・流れによる誘導
+4. **Obstruction**：変更・撤回の摩擦増加
+
+各試行は `trialConfig` により一意に定義され、
+URL（phase/taskSet/version/trialId）と紐付いてログ保存される。
+
+---
+
+## ディレクトリ構成
+
+```text
+src/
+  ├─ app/
+  │  ├─ components/
+  │  └─ [phase]/[taskSetId]/[taskVersion]/[trialId]/
+  │      ├─ product/
+  │      ├─ checkout/
+  │      ├─ confirm/
+  │      └─ terms/
+  │
+  ├─ config/
+  │
+  └─ lib/
+      └─ logger/
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 起動方法
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 1) 環境変数の設定
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+プロジェクトルートに `.env` を作成し、以下を記載します。
 
-## Learn More
+```env
+DATABASE_URL="file:./prisma/dev.db"
+```
 
-To learn more about Next.js, take a look at the following resources:
+### 2) セットアップ & 起動
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```
+npm install
+npx prisma migrate dev
+npm run dev
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### 3) ログ確認(任意)
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```
+npx prisma studio
+```
