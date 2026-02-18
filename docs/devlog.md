@@ -182,3 +182,49 @@ payloadには以下を保存：
   "value": "express"
 }
 ```
+
+## Commit 07: confirmページ作成（観測点の確保）
+
+### 目的
+
+購入フローの最終段（confirm）を「観測可能」にする。
+UI完成ではなく、確認行動・確定行動のログ導線を確保することが主目的。
+
+### 実装内容
+
+- `/[phase]/[taskSetId]/[taskVersion]/[trialId]/confirm` を新規実装
+- confirm上で以下の行動ログを取得できるようにした
+  - `page_view`（confirm到達）
+  - `click_expand_breakdown`（明細確認）
+  - `back_click`（戻る）
+  - `confirm_submit`（確定）
+- `track()` を通して `meta.trial` を必ず付与して EventLog に保存
+
+### 技術的判断
+
+#### 1. 「ページ完成」ではなく「観測点確保」を優先
+
+実験装置として必要なのは、confirm上の確認行動の有無が計測できる状態。
+デザインやUI洗練は後回し。
+
+#### 2. searchParamsのPromise互換（環境差の吸収）
+
+環境によって `searchParams` が Promise として渡るケースがあり、
+`productId` を取りこぼすとログが `unknown` になり得る。
+そのため `searchParams?: T | Promise<T>` とし、`await searchParams` する実装へ寄せた。
+
+### 動作確認（Done条件）
+
+- `http://localhost:3000/pre/A/A1/t000/confirm?productId=p1` の直打ちで表示できる
+- Prisma Studio で EventLog が増加し、以下が保存される
+  - `page="confirm"` かつ
+    - `type="page_view"`
+    - `type="click_expand_breakdown"`
+    - `type="back_click"`
+    - `type="confirm_submit"`
+- `meta.trial` が必ず入っていること
+
+### 次回
+
+- checkoutで選択した `shipping / addon` を confirm に正しく引き継ぐ
+- `productId` 欠損を許容せず（fail-fast）、unknownログを残さない
