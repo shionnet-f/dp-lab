@@ -228,3 +228,211 @@ UI完成ではなく、確認行動・確定行動のログ導線を確保する
 
 - checkoutで選択した `shipping / addon` を confirm に正しく引き継ぐ
 - `productId` 欠損を許容せず（fail-fast）、unknownログを残さない
+
+## Commit 08: confirmページ実装（実験最終ノードの導入）
+
+### 目的
+
+購入フローにおける「最終判断点」を実装する。
+
+これにより以下を観測可能にする：
+
+- 最終確定行動
+- 確認行動（明細確認など）
+- 再検討行動（checkoutへ戻る）
+
+---
+
+### 実装内容
+
+#### 1. confirmページの新規作成
+
+/[phase]/[taskSetId]/[taskVersion]/[trialId]/confirm
+
+- `productId` 必須（無い場合は throw）
+- `shippingId` / `addonGiftWrap` をクエリから受け取る
+- 合計金額を計算して表示
+
+---
+
+#### 2. confirmで取得するログ
+
+- `page_view`
+- `click_expand_breakdown`
+- `go_terms`
+- `back_to_checkout`
+- `confirm_submit`
+
+payloadには必ず `productId` を含める。
+
+---
+
+### 設計判断
+
+#### confirmを実験の最終ノードとする
+
+DPの影響は最終確定行動に現れるため、
+confirmを「観測の中心」と定義した。
+
+---
+
+#### unknownの禁止
+
+実験装置として、
+`productId` が無い状態でログが残ることを禁止。
+
+欠損データを許容しない設計。
+
+---
+
+### 動作確認
+
+- checkout → confirm 遷移
+- 合計が選択に応じて変化
+- `confirm_submit` が保存される
+- `meta.trial` が常に格納される
+
+---
+
+### 実験的意味
+
+ここで初めて、
+
+> 「重要情報を確認せずに確定したか」
+
+という分析が可能になった。
+
+---
+
+## Commit 09: termsページ実装（重要条件の分離）
+
+### 目的
+
+重要条件を別ページへ分離し、
+
+- 条件閲覧行動
+- 未閲覧確定行動
+
+を判定可能にする。
+
+---
+
+### 実装内容
+
+/terms?productId=xxx
+
+- `productId` 必須
+- `view_terms` ログ
+- `back_to_checkout` ログ
+
+---
+
+### 設計判断
+
+#### 本文はtermsにのみ配置
+
+omission系DPの観測点として利用。
+
+---
+
+#### 戻り先は一旦checkout
+
+confirmへ戻す設計は後回し。
+まずはログ導線の安定性を優先。
+
+---
+
+### 動作確認
+
+- confirm → terms 遷移
+- terms → checkout 遷移
+- `view_terms` / `back_to_checkout` が保存される
+
+---
+
+### 実験的意味
+
+「条件未閲覧で確定」が定義可能になった。
+
+---
+
+## Commit 10: confirmを実験最終ノードとして強化
+
+### 目的
+
+confirmを
+
+- 再検討可能
+- 重要条件へ遷移可能
+- 最終確定可能
+
+な完全ノードへ昇格させる。
+
+---
+
+### 実装内容
+
+#### 明細ログ
+
+- `click_expand_breakdown`
+
+#### 変更導線
+
+- `back_to_checkout`
+- shipping/addon を維持して戻る
+
+#### 最終確定
+
+- `confirm_submit`
+- `totalYen` をpayloadに含める
+
+---
+
+### 設計判断
+
+#### confirmを中心とする設計へ
+
+今後のDP実装はすべて
+「confirmでどう振る舞うか」に集約される。
+
+---
+
+#### 状態保持の完全化は後回し
+
+セッション管理は後段。
+まずは観測基盤の完成を優先。
+
+---
+
+### 動作確認
+
+- confirmログが正しく保存される
+- confirm → checkout → confirm が成立
+- confirm → terms が成立
+
+---
+
+## 到達状態（現時点）
+
+- product → checkout → confirm → terms → checkout
+- trialMeta 常時付与
+- productId 欠損禁止
+- confirm_submit が取得可能
+
+---
+
+## 現在の実験装置レベル
+
+- フロー基盤：完成
+- ログ基盤：完成
+- 最終判断観測：可能
+- DP未実装：一部のみ
+- TrialSummary未接続
+
+---
+
+## 次フェーズ
+
+- 導線整理（unknown撲滅・戻り先設計統一）
+- DP4分類の本実装
+- TrialSummary導入
