@@ -1,12 +1,11 @@
-// src/app/[phase]/[taskSetId]/[taskVersion]/[trialId]/confirm/page.tsx
-import Link from "next/link";
+import { redirect } from "next/navigation";
 import { getTrialMeta } from "@/lib/logger/getTrialMeta";
 import { track } from "@/lib/logger/track";
 
 type SearchParams = {
   productId?: string;
   shippingId?: string;
-  addonGiftWrap?: string;
+  addonGiftWrap?: string; // "true"/"false"
 };
 
 type Props = {
@@ -22,6 +21,7 @@ function yen(n: number) {
 
 const PRODUCT_PRICE_YEN = 1980;
 const SHIPPING_PRICE: Record<string, number> = { normal: 0, express: 800 };
+const ADDON_PRICE_YEN = 500;
 
 export default async function ConfirmPage({ params, searchParams }: Props) {
   const p = await params;
@@ -36,43 +36,28 @@ export default async function ConfirmPage({ params, searchParams }: Props) {
   const addonGiftWrap = sp?.addonGiftWrap === "true";
 
   const shippingPrice = SHIPPING_PRICE[shippingId] ?? 0;
-  const addonPrice = addonGiftWrap ? 500 : 0;
+  const addonPrice = addonGiftWrap ? ADDON_PRICE_YEN : 0;
   const total = PRODUCT_PRICE_YEN + shippingPrice + addonPrice;
 
   const baseUrl = `/${p.phase}/${p.taskSetId}/${p.taskVersion}/${p.trialId}`;
 
+  // 到達ログ（手動ボタンでOK。後で自動化しても良い）
   async function logPageView() {
-    "use server";
-    await track(trial, { page: "confirm", type: "page_view", payload: { productId } });
-  }
-
-  async function logExpand() {
-    "use server";
-    await track(trial, { page: "confirm", type: "click_expand_breakdown", payload: { productId } });
-  }
-
-  async function logBack() {
-    "use server";
-    await track(trial, { page: "confirm", type: "back_click", payload: { productId } });
-  }
-
-  async function logSubmit() {
     "use server";
     await track(trial, {
       page: "confirm",
-      type: "confirm_submit",
-      payload: {
-        productId,
-        finalShippingId: shippingId,
-        finalAddonGiftWrap: addonGiftWrap,
-        total,
-      },
+      type: "page_view",
+      payload: { productId, shippingId, addonGiftWrap },
     });
   }
 
   return (
     <main className="p-6 space-y-6">
-      <h1 className="text-xl font-bold">ご注文内容の確認</h1>
+      <h1 className="text-xl font-bold">注文内容の確認</h1>
+
+      <div className="text-xs text-gray-500 break-words">
+        trial: {p.phase}/{p.taskSetId}/{p.taskVersion}/{p.trialId}
+      </div>
 
       <form action={logPageView}>
         <button type="submit" className="text-sm underline text-gray-700">
@@ -80,41 +65,97 @@ export default async function ConfirmPage({ params, searchParams }: Props) {
         </button>
       </form>
 
-      <section className="rounded border bg-white p-4 space-y-3">
-        <div className="flex justify-between items-center">
-          <div className="font-semibold">注文内訳</div>
-          <form action={logExpand}>
-            <button type="submit" className="text-sm underline text-blue-600">
-              明細を確認
+      {/* 明細 */}
+      <section className="rounded border bg-white p-4 space-y-2">
+        <div className="flex items-center justify-between">
+          <div className="font-semibold">明細</div>
+
+          <form
+            action={async () => {
+              "use server";
+              await track(trial, {
+                page: "confirm",
+                type: "click_expand_breakdown",
+                payload: { productId },
+              });
+            }}
+          >
+            <button type="submit" className="text-sm underline text-gray-700">
+              明細を確認（ログ）
             </button>
           </form>
         </div>
 
-        <div className="text-sm text-gray-700 space-y-1">
-          <div>商品: ¥{yen(PRODUCT_PRICE_YEN)}</div>
-          <div>配送: ¥{yen(shippingPrice)}</div>
-          <div>オプション: ¥{yen(addonPrice)}</div>
+        <div className="text-sm text-gray-700">商品: ¥{yen(PRODUCT_PRICE_YEN)}</div>
+        <div className="text-sm text-gray-700">
+          配送: {shippingId}（¥{yen(shippingPrice)}）
+        </div>
+        <div className="text-sm text-gray-700">
+          ギフト包装: {addonGiftWrap ? "ON" : "OFF"}（¥{yen(addonPrice)}）
         </div>
 
-        <div className="border-t pt-2 font-semibold">合計: ¥{yen(total)}</div>
+        <div className="pt-2 border-t font-semibold">合計: ¥{yen(total)}</div>
       </section>
 
-      <Link
-        href={`${baseUrl}/checkout?productId=${encodeURIComponent(productId)}`}
-        className="text-sm underline"
+      {/* 変更導線：ログ→redirect */}
+      <div className="flex flex-wrap gap-3">
+        <form
+          action={async () => {
+            "use server";
+            await track(trial, {
+              page: "confirm",
+              type: "back_to_checkout",
+              payload: { productId },
+            });
+
+            const qs = new URLSearchParams({
+              productId,
+              shippingId,
+              addonGiftWrap: String(addonGiftWrap),
+            });
+
+            redirect(`${baseUrl}/checkout?${qs.toString()}`);
+          }}
+        >
+          <button type="submit" className="rounded border px-3 py-2 text-sm">
+            配送・オプションを変更する
+          </button>
+        </form>
+
+        <form
+          action={async () => {
+            "use server";
+            await track(trial, {
+              page: "confirm",
+              type: "go_terms",
+              payload: { productId },
+            });
+
+            redirect(`${baseUrl}/terms?productId=${encodeURIComponent(productId)}`);
+          }}
+        >
+          <button type="submit" className="rounded border px-3 py-2 text-sm">
+            重要条件を見る（terms）
+          </button>
+        </form>
+      </div>
+
+      {/* 確定：ログ→完了ページはまだ無いので一旦同ページに留める/後でredirect */}
+      <form
+        action={async () => {
+          "use server";
+          await track(trial, {
+            page: "confirm",
+            type: "confirm_submit",
+            payload: { productId, shippingId, addonGiftWrap, totalYen: total },
+          });
+
+          // いったん完成優先：完了ページが無いならconfirmに残す
+          // 将来: redirect(`${baseUrl}/done?...`)
+        }}
       >
-        戻る（checkoutへ）
-      </Link>
-
-      <form action={logBack}>
-        <button type="submit" className="text-xs underline text-gray-500">
-          back_click を記録（テスト）
-        </button>
-      </form>
-
-      <form action={logSubmit}>
-        <button type="submit" className="rounded bg-blue-600 px-4 py-2 text-white">
-          注文を確定する（confirm_submit）
+        <button type="submit" className="rounded bg-black px-4 py-2 text-white">
+          この内容で確定（ログ）
         </button>
       </form>
     </main>
