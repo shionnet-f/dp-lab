@@ -131,7 +131,17 @@ export default async function ConfirmPage({ params, searchParams }: Props) {
               payload: { productId },
             });
 
-            redirect(`${baseUrl}/terms?productId=${encodeURIComponent(productId)}`);
+            const qsConfirm = new URLSearchParams({
+              productId,
+              shippingId,
+              addonGiftWrap: String(addonGiftWrap),
+            });
+
+            const returnTo = `${baseUrl}/confirm?${qsConfirm.toString()}`;
+
+            redirect(
+              `${baseUrl}/terms?productId=${encodeURIComponent(productId)}&returnTo=${encodeURIComponent(returnTo)}`,
+            );
           }}
         >
           <button type="submit" className="rounded border px-3 py-2 text-sm">

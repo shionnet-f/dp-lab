@@ -436,3 +436,87 @@ confirmを
 - 導線整理（unknown撲滅・戻り先設計統一）
 - DP4分類の本実装
 - TrialSummary導入
+
+## Commit 11: 導線整合性の確立（returnTo導入）
+
+### 目的
+
+terms導入後に発生した導線不整合を解消し、
+
+- checkout → terms → checkout
+- confirm → terms → confirm
+- product → checkout
+
+の往復を **ログ保証付きで安定化** する。
+
+---
+
+### 実装内容
+
+#### 1. confirm / checkout → terms に returnTo を付与
+
+現在のURL（query含む）を returnTo として渡す。
+
+```ts
+redirect(`${baseUrl}/terms?productId=${productId}&returnTo=${encodeURIComponent(currentUrl)}`);
+```
+
+---
+
+#### 2. terms側で returnTo を検証
+
+- baseUrl配下のみ許可
+- `/confirm` または `/checkout` のみ許可
+
+```ts
+if (!returnTo.startsWith(`${baseUrl}/confirm`) && !returnTo.startsWith(`${baseUrl}/checkout`)) {
+  throw new Error("Invalid returnTo in terms");
+}
+```
+
+---
+
+#### 3. 戻る操作を「ログ → redirect」に統一
+
+```ts
+await track(trial, {
+  page: "terms",
+  type: "back_to_previous",
+  payload: { productId },
+});
+
+redirect(returnTo);
+```
+
+---
+
+#### 4. product → checkout を Link廃止
+
+ログ漏れ防止のため ServerAction一本化。
+
+```ts
+await track(trial, {
+  page: "product",
+  type: "select_product",
+  payload: { productId },
+});
+
+redirect(`${baseUrl}/checkout?productId=${productId}`);
+```
+
+---
+
+### 動作確認
+
+- checkout → terms → checkout 成立
+- confirm → terms → confirm 成立
+- product選択ログ保存確認
+- 不正 returnTo は即エラー
+
+---
+
+### 到達状態
+
+- 導線安定
+- ログ保証
+- URL改変による実験破壊防止

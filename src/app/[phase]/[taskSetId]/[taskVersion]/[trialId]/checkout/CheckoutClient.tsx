@@ -26,6 +26,7 @@ type Props = {
   ) => Promise<void>;
   logSubmitCheckout: (finalShippingId: string, finalAddonGiftWrap: boolean) => Promise<void>;
   logClickTerms: () => Promise<void>;
+  backToProduct: () => Promise<void>;
 };
 
 export default function CheckoutClient({
@@ -37,6 +38,7 @@ export default function CheckoutClient({
   logOptionChange,
   logSubmitCheckout,
   logClickTerms,
+  backToProduct,
 }: Props) {
   const router = useRouter();
 
@@ -156,7 +158,20 @@ export default function CheckoutClient({
           className="underline text-gray-700"
           onClick={async () => {
             await logClickTerms();
-            const qs = new URLSearchParams({ productId });
+
+            const returnToQs = new URLSearchParams({
+              productId,
+              shippingId,
+              addonGiftWrap: String(addonGiftWrap),
+            });
+
+            const returnTo = `${baseUrl}/checkout?${returnToQs.toString()}`;
+
+            const qs = new URLSearchParams({
+              productId,
+              returnTo,
+            });
+
             router.push(`${baseUrl}/terms?${qs.toString()}`);
           }}
         >
@@ -172,6 +187,12 @@ export default function CheckoutClient({
         <div className="text-sm text-gray-700">オプション: ¥{yen(addonPrice)}</div>
         <div className="pt-2 border-t font-semibold">合計: ¥{yen(total)}</div>
       </section>
+
+      <form action={backToProduct}>
+        <button type="submit" className="rounded border px-3 py-2 text-sm">
+          商品一覧へ戻る
+        </button>
+      </form>
 
       {/* 次へ */}
       <button

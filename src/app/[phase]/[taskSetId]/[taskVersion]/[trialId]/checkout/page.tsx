@@ -1,6 +1,7 @@
 import CheckoutClient from "./CheckoutClient";
 import { getTrialMeta } from "@/lib/logger/getTrialMeta";
 import { track } from "@/lib/logger/track";
+import { redirect } from "next/navigation";
 
 type SearchParams = { productId?: string };
 
@@ -64,6 +65,16 @@ export default async function CheckoutPage({ params, searchParams }: Props) {
     await track(trial, { page: "checkout", type: "click_terms", payload: { productId } });
   }
 
+  async function backToProduct() {
+    "use server";
+    await track(trial, {
+      page: "checkout",
+      type: "back_to_product",
+      payload: { productId },
+    });
+    redirect(`${baseUrl}/product`);
+  }
+
   return (
     <CheckoutClient
       baseUrl={baseUrl}
@@ -74,6 +85,7 @@ export default async function CheckoutPage({ params, searchParams }: Props) {
       logOptionChange={logOptionChange}
       logSubmitCheckout={logSubmitCheckout}
       logClickTerms={logClickTerms}
+      backToProduct={backToProduct}
     />
   );
 }
