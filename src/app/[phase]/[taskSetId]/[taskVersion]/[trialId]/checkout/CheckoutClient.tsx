@@ -25,6 +25,7 @@ type Props = {
     value: string | boolean,
   ) => Promise<void>;
   logSubmitCheckout: (finalShippingId: string, finalAddonGiftWrap: boolean) => Promise<void>;
+  logClickTerms: () => Promise<void>;
 };
 
 export default function CheckoutClient({
@@ -35,6 +36,7 @@ export default function CheckoutClient({
   logDetailClose,
   logOptionChange,
   logSubmitCheckout,
+  logClickTerms,
 }: Props) {
   const router = useRouter();
 
@@ -148,6 +150,19 @@ export default function CheckoutClient({
           </div>
         </label>
       </section>
+      <div className="text-sm">
+        <button
+          type="button"
+          className="underline text-gray-700"
+          onClick={async () => {
+            await logClickTerms();
+            const qs = new URLSearchParams({ productId });
+            router.push(`${baseUrl}/terms?${qs.toString()}`);
+          }}
+        >
+          解約条件はこちら（termsへ）
+        </button>
+      </div>
 
       {/* 合計 */}
       <section className="rounded-lg border bg-white p-4 shadow-sm space-y-2">

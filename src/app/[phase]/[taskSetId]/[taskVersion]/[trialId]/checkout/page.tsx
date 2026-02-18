@@ -59,6 +59,11 @@ export default async function CheckoutPage({ params, searchParams }: Props) {
     });
   }
 
+  async function logClickTerms() {
+    "use server";
+    await track(trial, { page: "checkout", type: "click_terms", payload: { productId } });
+  }
+
   return (
     <CheckoutClient
       baseUrl={baseUrl}
@@ -68,6 +73,7 @@ export default async function CheckoutPage({ params, searchParams }: Props) {
       logDetailClose={logDetailClose}
       logOptionChange={logOptionChange}
       logSubmitCheckout={logSubmitCheckout}
+      logClickTerms={logClickTerms}
     />
   );
 }
