@@ -538,3 +538,92 @@ redirect(`${baseUrl}/checkout?productId=${productId}`);
 - リロードで維持
 - submit_checkoutのpayloadが最終状態
 - productId欠損は即エラー
+
+## Commit 13: TrialSummary保存の導入
+
+### 目的
+
+1試行（1購入フロー）終了時点の状態を、
+分析可能な形で1レコードに集約する。
+
+EventLogは「行動の証拠ログ」、
+TrialSummaryは「分析用データ」として役割を分離する。
+
+---
+
+### 実装内容
+
+#### 1. confirm_submit時にTrialSummaryを保存
+
+- saveTrialSummary を実装
+- confirm_submit 内で呼び出し
+
+保存項目：
+
+- meta（trialMeta一式）
+- isInappropriate（仮でfalse）
+- confirmedImportantInfo（仮でfalse）
+- totalTimeMs（仮で0）
+- extras
+  - productId
+  - shippingId
+  - addonGiftWrap
+  - totalYen
+
+---
+
+### 設計判断
+
+#### 1. EventLogとSummaryを分離
+
+EventLog：
+
+- 全操作の時系列ログ
+
+TrialSummary：
+
+- 1試行＝1行の分析用データ
+
+後段の統計処理を簡潔にするため、
+「再構築前提」ではなく「圧縮保存」を採用。
+
+---
+
+#### 2. 判定ロジックは未実装でOK
+
+- confirmedImportantInfo
+- isInappropriate
+- totalTimeMs
+
+これらは次コミットで実装。
+
+今回は「保存基盤の確立」を優先。
+
+---
+
+### 動作確認
+
+- confirm_submitで画面が落ちない
+- EventLogにconfirm_submitが保存される
+- TrialSummaryに1行追加される
+- extrasが正しく保存される
+
+---
+
+### 到達状態
+
+- フロー基盤：完成
+- ログ基盤：完成
+- TrialSummary保存：完成
+- 分析可能な構造へ移行
+
+実験装置として、
+「観測→集約」まで到達。
+
+---
+
+### 次コミット
+
+- confirmedImportantInfoの自動判定
+- totalTimeMs計測導入
+- inappropriate定義
