@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getTrialMeta } from "@/lib/logger/getTrialMeta";
 import { track } from "@/lib/logger/track";
+import { saveTrialSummary } from "@/lib/logger/saveTrialSummary";
 
 type SearchParams = {
   productId?: string;
@@ -160,8 +161,18 @@ export default async function ConfirmPage({ params, searchParams }: Props) {
             payload: { productId, shippingId, addonGiftWrap, totalYen: total },
           });
 
-          // いったん完成優先：完了ページが無いならconfirmに残す
-          // 将来: redirect(`${baseUrl}/done?...`)
+          await saveTrialSummary({
+            meta: trial,
+            isInappropriate: false,
+            confirmedImportantInfo: false,
+            totalTimeMs: 0,
+            extras: {
+              productId,
+              shippingId,
+              addonGiftWrap,
+              totalYen: total,
+            },
+          });
         }}
       >
         <button type="submit" className="rounded bg-black px-4 py-2 text-white">
