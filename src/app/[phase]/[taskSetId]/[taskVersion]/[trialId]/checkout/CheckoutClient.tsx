@@ -27,6 +27,9 @@ type Props = {
   logSubmitCheckout: (finalShippingId: string, finalAddonGiftWrap: boolean) => Promise<void>;
   logClickTerms: () => Promise<void>;
   backToProduct: () => Promise<void>;
+
+  initialShippingId: string;
+  initialAddonGiftWrap: boolean;
 };
 
 export default function CheckoutClient({
@@ -39,11 +42,13 @@ export default function CheckoutClient({
   logSubmitCheckout,
   logClickTerms,
   backToProduct,
+  initialShippingId,
+  initialAddonGiftWrap,
 }: Props) {
   const router = useRouter();
 
-  const [shippingId, setShippingId] = useState<string>("normal");
-  const [addonGiftWrap, setAddonGiftWrap] = useState<boolean>(false);
+  const [shippingId, setShippingId] = useState(initialShippingId);
+  const [addonGiftWrap, setAddonGiftWrap] = useState(initialAddonGiftWrap);
 
   const shippingPrice = useMemo(() => {
     const s = shippingOptions.find((x) => x.id === shippingId);

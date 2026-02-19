@@ -520,3 +520,21 @@ redirect(`${baseUrl}/checkout?productId=${productId}`);
 - 導線安定
 - ログ保証
 - URL改変による実験破壊防止
+
+## Commit 12: checkout状態復元（URL → 初期state）
+
+### 目的
+
+- checkoutの状態をURLから復元し、リロード耐性を確保する
+
+### 実装
+
+- searchParamsに shippingId / addonGiftWrap を追加
+- CheckoutClientの初期stateを initial\* から初期化
+
+### 動作確認
+
+- URL直打ちで状態復元
+- リロードで維持
+- submit_checkoutのpayloadが最終状態
+- productId欠損は即エラー

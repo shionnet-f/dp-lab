@@ -3,7 +3,11 @@ import { getTrialMeta } from "@/lib/logger/getTrialMeta";
 import { track } from "@/lib/logger/track";
 import { redirect } from "next/navigation";
 
-type SearchParams = { productId?: string };
+type SearchParams = {
+  productId?: string;
+  shippingId?: string;
+  addonGiftWrap?: string;
+};
 
 type Props = {
   params:
@@ -25,6 +29,9 @@ export default async function CheckoutPage({ params, searchParams }: Props) {
   }
 
   const baseUrl = `/${p.phase}/${p.taskSetId}/${p.taskVersion}/${p.trialId}`;
+
+  const initialShippingId = sp?.shippingId ?? "normal";
+  const initialAddonGiftWrap = sp?.addonGiftWrap === "true";
 
   // --- server actions（clientに渡す） ---
   async function logPageView() {
@@ -79,6 +86,8 @@ export default async function CheckoutPage({ params, searchParams }: Props) {
     <CheckoutClient
       baseUrl={baseUrl}
       productId={productId}
+      initialShippingId={initialShippingId}
+      initialAddonGiftWrap={initialAddonGiftWrap}
       logPageView={logPageView}
       logDetailOpen={logDetailOpen}
       logDetailClose={logDetailClose}
