@@ -627,3 +627,32 @@ TrialSummary：
 - confirmedImportantInfoの自動判定
 - totalTimeMs計測導入
 - inappropriate定義
+
+## Commit 14: confirmedImportantInfo の自動判定（暫定境界）
+
+### 目的
+
+confirm_submit（submit_confirm）時点で、
+「重要条件（terms）を確認したか」を TrialSummary に自動で保存する。
+
+### 実装内容
+
+- terms到達時に `view_terms` を自動記録（TermsViewLogger）
+- confirm確定時に `confirmedImportantInfo` を自動判定して TrialSummary に保存
+
+### 判定ロジック（暫定）
+
+現時点では session / trial_start が未導入のため、
+「直近の submit_confirm 以降に view_terms が存在するか」を境界として判定する。
+過去ログ汚染（同一trialIdで過去にview_termsがある問題）を回避するための暫定策。
+
+### 動作確認
+
+- A: terms未閲覧で確定 → confirmedImportantInfo=false
+- B: terms閲覧後に確定 → confirmedImportantInfo=true
+- B→A と連続実行しても A は false（過去ログ汚染しない）
+
+### 次
+
+Commit15で `trial_start` を導入し、
+「trial_start 以降の view_terms」のように正式な境界へ置換する。

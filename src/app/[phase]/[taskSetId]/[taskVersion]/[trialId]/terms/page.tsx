@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getTrialMeta } from "@/lib/logger/getTrialMeta";
 import { track } from "@/lib/logger/track";
+import TermsViewLogger from "./TermsViewLogger";
 
 type SearchParams = { productId?: string; returnTo?: string };
 
@@ -40,6 +41,8 @@ export default async function TermsPage({ params, searchParams }: Props) {
   return (
     <main className="p-6 space-y-6">
       <h1 className="text-xl font-bold">解約・重要条件</h1>
+
+      <TermsViewLogger logView={logView} />
 
       <form action={logView}>
         <button type="submit" className="text-sm underline text-gray-700">

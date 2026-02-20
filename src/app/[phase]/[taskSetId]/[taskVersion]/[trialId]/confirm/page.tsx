@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getTrialMeta } from "@/lib/logger/getTrialMeta";
 import { track } from "@/lib/logger/track";
 import { saveTrialSummary } from "@/lib/logger/saveTrialSummary";
+import { hasViewedTerms } from "@/lib/logger/hasViewedTerms";
 
 type SearchParams = {
   productId?: string;
@@ -155,16 +156,22 @@ export default async function ConfirmPage({ params, searchParams }: Props) {
       <form
         action={async () => {
           "use server";
+
+          // ① 先に判定する（この時点では今回の submit_confirm がまだ無い）
+          const confirmedImportantInfo = await hasViewedTerms(trial);
+
+          // ② そのあと submit_confirm をログ
           await track(trial, {
             page: "confirm",
-            type: "confirm_submit",
+            type: "submit_confirm",
             payload: { productId, shippingId, addonGiftWrap, totalYen: total },
           });
 
+          // ③ Summary保存
           await saveTrialSummary({
             meta: trial,
             isInappropriate: false,
-            confirmedImportantInfo: false,
+            confirmedImportantInfo,
             totalTimeMs: 0,
             extras: {
               productId,
