@@ -681,3 +681,30 @@ Commit15で `trial_start` を導入し、
 - 1回目の確定で totalTimeMs > 0
 - 確定後は product に戻る
 - 2回目以降の試行でも totalTimeMs が 0 にならない
+
+## Commit 16: isInappropriate の自動判定
+
+### 目的
+
+1試行の品質フラグとして `isInappropriate` を定義し、
+TrialSummary に自動で保存できる状態にする。
+
+### 定義（現時点の最小）
+
+- `isInappropriate = !confirmedImportantInfo`
+  - terms（重要条件）を未確認のまま確定した試行を「不適正」とする
+
+### 実装内容
+
+- confirm確定時に `confirmedImportantInfo` をもとに `isInappropriate` を算出
+- `saveTrialSummary` に `isInappropriate` を保存
+
+### 動作確認
+
+- terms未閲覧で確定 → confirmedImportantInfo=false / isInappropriate=true
+- terms閲覧後に確定 → confirmedImportantInfo=true / isInappropriate=false
+
+### 次
+
+- Commit17でDP4分類（misleading/omission/pressure/obstruction）を最低1本ずつ実装し、
+  isInappropriate / confirmedImportantInfo / totalTimeMs を条件間で比較可能にする。
