@@ -182,3 +182,502 @@ payloadには以下を保存：
   "value": "express"
 }
 ```
+
+## Commit 07: confirmページ作成（観測点の確保）
+
+### 目的
+
+購入フローの最終段（confirm）を「観測可能」にする。
+UI完成ではなく、確認行動・確定行動のログ導線を確保することが主目的。
+
+### 実装内容
+
+- `/[phase]/[taskSetId]/[taskVersion]/[trialId]/confirm` を新規実装
+- confirm上で以下の行動ログを取得できるようにした
+  - `page_view`（confirm到達）
+  - `click_expand_breakdown`（明細確認）
+  - `back_click`（戻る）
+  - `confirm_submit`（確定）
+- `track()` を通して `meta.trial` を必ず付与して EventLog に保存
+
+### 技術的判断
+
+#### 1. 「ページ完成」ではなく「観測点確保」を優先
+
+実験装置として必要なのは、confirm上の確認行動の有無が計測できる状態。
+デザインやUI洗練は後回し。
+
+#### 2. searchParamsのPromise互換（環境差の吸収）
+
+環境によって `searchParams` が Promise として渡るケースがあり、
+`productId` を取りこぼすとログが `unknown` になり得る。
+そのため `searchParams?: T | Promise<T>` とし、`await searchParams` する実装へ寄せた。
+
+### 動作確認（Done条件）
+
+- `http://localhost:3000/pre/A/A1/t000/confirm?productId=p1` の直打ちで表示できる
+- Prisma Studio で EventLog が増加し、以下が保存される
+  - `page="confirm"` かつ
+    - `type="page_view"`
+    - `type="click_expand_breakdown"`
+    - `type="back_click"`
+    - `type="confirm_submit"`
+- `meta.trial` が必ず入っていること
+
+### 次回
+
+- checkoutで選択した `shipping / addon` を confirm に正しく引き継ぐ
+- `productId` 欠損を許容せず（fail-fast）、unknownログを残さない
+
+## Commit 08: confirmページ実装（実験最終ノードの導入）
+
+### 目的
+
+購入フローにおける「最終判断点」を実装する。
+
+これにより以下を観測可能にする：
+
+- 最終確定行動
+- 確認行動（明細確認など）
+- 再検討行動（checkoutへ戻る）
+
+---
+
+### 実装内容
+
+#### 1. confirmページの新規作成
+
+/[phase]/[taskSetId]/[taskVersion]/[trialId]/confirm
+
+- `productId` 必須（無い場合は throw）
+- `shippingId` / `addonGiftWrap` をクエリから受け取る
+- 合計金額を計算して表示
+
+---
+
+#### 2. confirmで取得するログ
+
+- `page_view`
+- `click_expand_breakdown`
+- `go_terms`
+- `back_to_checkout`
+- `confirm_submit`
+
+payloadには必ず `productId` を含める。
+
+---
+
+### 設計判断
+
+#### confirmを実験の最終ノードとする
+
+DPの影響は最終確定行動に現れるため、
+confirmを「観測の中心」と定義した。
+
+---
+
+#### unknownの禁止
+
+実験装置として、
+`productId` が無い状態でログが残ることを禁止。
+
+欠損データを許容しない設計。
+
+---
+
+### 動作確認
+
+- checkout → confirm 遷移
+- 合計が選択に応じて変化
+- `confirm_submit` が保存される
+- `meta.trial` が常に格納される
+
+---
+
+### 実験的意味
+
+ここで初めて、
+
+> 「重要情報を確認せずに確定したか」
+
+という分析が可能になった。
+
+---
+
+## Commit 09: termsページ実装（重要条件の分離）
+
+### 目的
+
+重要条件を別ページへ分離し、
+
+- 条件閲覧行動
+- 未閲覧確定行動
+
+を判定可能にする。
+
+---
+
+### 実装内容
+
+/terms?productId=xxx
+
+- `productId` 必須
+- `view_terms` ログ
+- `back_to_checkout` ログ
+
+---
+
+### 設計判断
+
+#### 本文はtermsにのみ配置
+
+omission系DPの観測点として利用。
+
+---
+
+#### 戻り先は一旦checkout
+
+confirmへ戻す設計は後回し。
+まずはログ導線の安定性を優先。
+
+---
+
+### 動作確認
+
+- confirm → terms 遷移
+- terms → checkout 遷移
+- `view_terms` / `back_to_checkout` が保存される
+
+---
+
+### 実験的意味
+
+「条件未閲覧で確定」が定義可能になった。
+
+---
+
+## Commit 10: confirmを実験最終ノードとして強化
+
+### 目的
+
+confirmを
+
+- 再検討可能
+- 重要条件へ遷移可能
+- 最終確定可能
+
+な完全ノードへ昇格させる。
+
+---
+
+### 実装内容
+
+#### 明細ログ
+
+- `click_expand_breakdown`
+
+#### 変更導線
+
+- `back_to_checkout`
+- shipping/addon を維持して戻る
+
+#### 最終確定
+
+- `confirm_submit`
+- `totalYen` をpayloadに含める
+
+---
+
+### 設計判断
+
+#### confirmを中心とする設計へ
+
+今後のDP実装はすべて
+「confirmでどう振る舞うか」に集約される。
+
+---
+
+#### 状態保持の完全化は後回し
+
+セッション管理は後段。
+まずは観測基盤の完成を優先。
+
+---
+
+### 動作確認
+
+- confirmログが正しく保存される
+- confirm → checkout → confirm が成立
+- confirm → terms が成立
+
+---
+
+## 到達状態（現時点）
+
+- product → checkout → confirm → terms → checkout
+- trialMeta 常時付与
+- productId 欠損禁止
+- confirm_submit が取得可能
+
+---
+
+## 現在の実験装置レベル
+
+- フロー基盤：完成
+- ログ基盤：完成
+- 最終判断観測：可能
+- DP未実装：一部のみ
+- TrialSummary未接続
+
+---
+
+## 次フェーズ
+
+- 導線整理（unknown撲滅・戻り先設計統一）
+- DP4分類の本実装
+- TrialSummary導入
+
+## Commit 11: 導線整合性の確立（returnTo導入）
+
+### 目的
+
+terms導入後に発生した導線不整合を解消し、
+
+- checkout → terms → checkout
+- confirm → terms → confirm
+- product → checkout
+
+の往復を **ログ保証付きで安定化** する。
+
+---
+
+### 実装内容
+
+#### 1. confirm / checkout → terms に returnTo を付与
+
+現在のURL（query含む）を returnTo として渡す。
+
+```ts
+redirect(`${baseUrl}/terms?productId=${productId}&returnTo=${encodeURIComponent(currentUrl)}`);
+```
+
+---
+
+#### 2. terms側で returnTo を検証
+
+- baseUrl配下のみ許可
+- `/confirm` または `/checkout` のみ許可
+
+```ts
+if (!returnTo.startsWith(`${baseUrl}/confirm`) && !returnTo.startsWith(`${baseUrl}/checkout`)) {
+  throw new Error("Invalid returnTo in terms");
+}
+```
+
+---
+
+#### 3. 戻る操作を「ログ → redirect」に統一
+
+```ts
+await track(trial, {
+  page: "terms",
+  type: "back_to_previous",
+  payload: { productId },
+});
+
+redirect(returnTo);
+```
+
+---
+
+#### 4. product → checkout を Link廃止
+
+ログ漏れ防止のため ServerAction一本化。
+
+```ts
+await track(trial, {
+  page: "product",
+  type: "select_product",
+  payload: { productId },
+});
+
+redirect(`${baseUrl}/checkout?productId=${productId}`);
+```
+
+---
+
+### 動作確認
+
+- checkout → terms → checkout 成立
+- confirm → terms → confirm 成立
+- product選択ログ保存確認
+- 不正 returnTo は即エラー
+
+---
+
+### 到達状態
+
+- 導線安定
+- ログ保証
+- URL改変による実験破壊防止
+
+## Commit 12: checkout状態復元（URL → 初期state）
+
+### 目的
+
+- checkoutの状態をURLから復元し、リロード耐性を確保する
+
+### 実装
+
+- searchParamsに shippingId / addonGiftWrap を追加
+- CheckoutClientの初期stateを initial\* から初期化
+
+### 動作確認
+
+- URL直打ちで状態復元
+- リロードで維持
+- submit_checkoutのpayloadが最終状態
+- productId欠損は即エラー
+
+## Commit 13: TrialSummary保存の導入
+
+### 目的
+
+1試行（1購入フロー）終了時点の状態を、
+分析可能な形で1レコードに集約する。
+
+EventLogは「行動の証拠ログ」、
+TrialSummaryは「分析用データ」として役割を分離する。
+
+---
+
+### 実装内容
+
+#### 1. confirm_submit時にTrialSummaryを保存
+
+- saveTrialSummary を実装
+- confirm_submit 内で呼び出し
+
+保存項目：
+
+- meta（trialMeta一式）
+- isInappropriate（仮でfalse）
+- confirmedImportantInfo（仮でfalse）
+- totalTimeMs（仮で0）
+- extras
+  - productId
+  - shippingId
+  - addonGiftWrap
+  - totalYen
+
+---
+
+### 設計判断
+
+#### 1. EventLogとSummaryを分離
+
+EventLog：
+
+- 全操作の時系列ログ
+
+TrialSummary：
+
+- 1試行＝1行の分析用データ
+
+後段の統計処理を簡潔にするため、
+「再構築前提」ではなく「圧縮保存」を採用。
+
+---
+
+#### 2. 判定ロジックは未実装でOK
+
+- confirmedImportantInfo
+- isInappropriate
+- totalTimeMs
+
+これらは次コミットで実装。
+
+今回は「保存基盤の確立」を優先。
+
+---
+
+### 動作確認
+
+- confirm_submitで画面が落ちない
+- EventLogにconfirm_submitが保存される
+- TrialSummaryに1行追加される
+- extrasが正しく保存される
+
+---
+
+### 到達状態
+
+- フロー基盤：完成
+- ログ基盤：完成
+- TrialSummary保存：完成
+- 分析可能な構造へ移行
+
+実験装置として、
+「観測→集約」まで到達。
+
+---
+
+### 次コミット
+
+- confirmedImportantInfoの自動判定
+- totalTimeMs計測導入
+- inappropriate定義
+
+## Commit 14: confirmedImportantInfo の自動判定（暫定境界）
+
+### 目的
+
+confirm_submit（submit_confirm）時点で、
+「重要条件（terms）を確認したか」を TrialSummary に自動で保存する。
+
+### 実装内容
+
+- terms到達時に `view_terms` を自動記録（TermsViewLogger）
+- confirm確定時に `confirmedImportantInfo` を自動判定して TrialSummary に保存
+
+### 判定ロジック（暫定）
+
+現時点では session / trial_start が未導入のため、
+「直近の submit_confirm 以降に view_terms が存在するか」を境界として判定する。
+過去ログ汚染（同一trialIdで過去にview_termsがある問題）を回避するための暫定策。
+
+### 動作確認
+
+- A: terms未閲覧で確定 → confirmedImportantInfo=false
+- B: terms閲覧後に確定 → confirmedImportantInfo=true
+- B→A と連続実行しても A は false（過去ログ汚染しない）
+
+### 次
+
+Commit15で `trial_start` を導入し、
+「trial_start 以降の view_terms」のように正式な境界へ置換する。
+
+## Commit 15: trial_start導入とtotalTimeMs計測
+
+### 目的
+
+1試行（1購入フロー）の所要時間を計測し、confirm確定時に TrialSummary.totalTimeMs として保存する。
+
+### 実装内容
+
+- product到達時に `trial_start` を記録（1試行につき1回を保証）
+- confirm確定時に `trial_start` からの経過時間を `totalTimeMs` として保存
+- submit_confirm後は `product` へ redirect し、試行を終了（二重submit防止）
+
+### 設計判断
+
+- session / trialRunId 未導入のため、境界は暫定で「直近 submit_confirm 以降」を採用
+- totalTimeMs は submit_confirm ログ保存より前に算出（境界更新の影響を受けないようにする）
+- 試行の終端を閉じて、同一画面での複数回submitによるデータ汚染を防止
+
+### 動作確認
+
+- trial_start が記録される（増殖しない）
+- 1回目の確定で totalTimeMs > 0
+- 確定後は product に戻る
+- 2回目以降の試行でも totalTimeMs が 0 にならない
