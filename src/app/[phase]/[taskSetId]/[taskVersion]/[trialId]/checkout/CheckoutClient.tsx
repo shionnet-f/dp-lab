@@ -30,6 +30,8 @@ type Props = {
 
   initialShippingId: string;
   initialAddonGiftWrap: boolean;
+
+  isOmission: boolean;
 };
 
 export default function CheckoutClient({
@@ -44,6 +46,7 @@ export default function CheckoutClient({
   backToProduct,
   initialShippingId,
   initialAddonGiftWrap,
+  isOmission,
 }: Props) {
   const router = useRouter();
 
@@ -160,27 +163,20 @@ export default function CheckoutClient({
       <div className="text-sm">
         <button
           type="button"
-          className="underline text-gray-700"
+          className={isOmission ? "text-xs text-gray-400 underline" : "underline text-gray-700"}
           onClick={async () => {
             await logClickTerms();
-
             const returnToQs = new URLSearchParams({
               productId,
               shippingId,
               addonGiftWrap: String(addonGiftWrap),
             });
-
             const returnTo = `${baseUrl}/checkout?${returnToQs.toString()}`;
-
-            const qs = new URLSearchParams({
-              productId,
-              returnTo,
-            });
-
+            const qs = new URLSearchParams({ productId, returnTo });
             router.push(`${baseUrl}/terms?${qs.toString()}`);
           }}
         >
-          解約条件はこちら（termsへ）
+          {isOmission ? "解約条件（任意）" : "解約条件はこちら（termsへ）"}
         </button>
       </div>
 

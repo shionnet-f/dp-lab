@@ -32,6 +32,9 @@ export default async function ConfirmPage({ params, searchParams }: Props) {
 
   const trial = getTrialMeta(p);
 
+  const isPressure = trial.strategy === "pressure";
+  const isObstruction = trial.strategy === "obstruction";
+
   const productId = sp?.productId;
   if (!productId) throw new Error("Missing productId in confirm");
 
@@ -57,6 +60,14 @@ export default async function ConfirmPage({ params, searchParams }: Props) {
   return (
     <main className="p-6 space-y-6">
       <h1 className="text-xl font-bold">注文内容の確認</h1>
+      {isPressure ? (
+        <div className="rounded border bg-yellow-50 p-3 text-sm text-gray-800">
+          <div className="font-semibold">本日中の手続きがおすすめです</div>
+          <div className="text-xs text-gray-600">
+            混雑状況により条件確認に時間がかかる場合があります。
+          </div>
+        </div>
+      ) : null}
 
       <div className="text-xs text-gray-500 break-words">
         trial: {p.phase}/{p.taskSetId}/{p.taskVersion}/{p.trialId}
@@ -141,6 +152,14 @@ export default async function ConfirmPage({ params, searchParams }: Props) {
             });
 
             const returnTo = `${baseUrl}/confirm?${qsConfirm.toString()}`;
+
+            if (isObstruction) {
+              const qs = new URLSearchParams({
+                productId,
+                returnTo: `${baseUrl}/terms?productId=${encodeURIComponent(productId)}&returnTo=${encodeURIComponent(returnTo)}`,
+              });
+              redirect(`${baseUrl}/gate?${qs.toString()}`);
+            }
 
             redirect(
               `${baseUrl}/terms?productId=${encodeURIComponent(productId)}&returnTo=${encodeURIComponent(returnTo)}`,
