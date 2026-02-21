@@ -3,6 +3,7 @@ import { getTrialMeta } from "@/lib/logger/getTrialMeta";
 import { track } from "@/lib/logger/track";
 import { saveTrialSummary } from "@/lib/logger/saveTrialSummary";
 import { hasViewedTerms } from "@/lib/logger/hasViewedTerms";
+import { calcTotalTimeMs } from "@/lib/logger/calcTotalTimeMs";
 
 type SearchParams = {
   productId?: string;
@@ -157,22 +158,25 @@ export default async function ConfirmPage({ params, searchParams }: Props) {
         action={async () => {
           "use server";
 
-          // ① 先に判定する（この時点では今回の submit_confirm がまだ無い）
+          // ① 判定（先）
           const confirmedImportantInfo = await hasViewedTerms(trial);
 
-          // ② そのあと submit_confirm をログ
+          // ② 時間計算（先）
+          const totalTimeMs = await calcTotalTimeMs(trial);
+
+          // ③ 確定ログ（後）
           await track(trial, {
             page: "confirm",
             type: "submit_confirm",
             payload: { productId, shippingId, addonGiftWrap, totalYen: total },
           });
 
-          // ③ Summary保存
+          // ④ Summary（後）
           await saveTrialSummary({
             meta: trial,
             isInappropriate: false,
             confirmedImportantInfo,
-            totalTimeMs: 0,
+            totalTimeMs,
             extras: {
               productId,
               shippingId,
@@ -180,6 +184,8 @@ export default async function ConfirmPage({ params, searchParams }: Props) {
               totalYen: total,
             },
           });
+
+          redirect(`${baseUrl}/product`);
         }}
       >
         <button type="submit" className="rounded bg-black px-4 py-2 text-white">

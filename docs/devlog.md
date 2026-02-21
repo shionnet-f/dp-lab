@@ -656,3 +656,28 @@ confirm_submit（submit_confirm）時点で、
 
 Commit15で `trial_start` を導入し、
 「trial_start 以降の view_terms」のように正式な境界へ置換する。
+
+## Commit 15: trial_start導入とtotalTimeMs計測
+
+### 目的
+
+1試行（1購入フロー）の所要時間を計測し、confirm確定時に TrialSummary.totalTimeMs として保存する。
+
+### 実装内容
+
+- product到達時に `trial_start` を記録（1試行につき1回を保証）
+- confirm確定時に `trial_start` からの経過時間を `totalTimeMs` として保存
+- submit_confirm後は `product` へ redirect し、試行を終了（二重submit防止）
+
+### 設計判断
+
+- session / trialRunId 未導入のため、境界は暫定で「直近 submit_confirm 以降」を採用
+- totalTimeMs は submit_confirm ログ保存より前に算出（境界更新の影響を受けないようにする）
+- 試行の終端を閉じて、同一画面での複数回submitによるデータ汚染を防止
+
+### 動作確認
+
+- trial_start が記録される（増殖しない）
+- 1回目の確定で totalTimeMs > 0
+- 確定後は product に戻る
+- 2回目以降の試行でも totalTimeMs が 0 にならない

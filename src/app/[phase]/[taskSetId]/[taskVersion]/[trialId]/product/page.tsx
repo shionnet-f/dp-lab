@@ -4,6 +4,7 @@ import { getTrialMeta } from "@/lib/logger/getTrialMeta";
 import { track } from "@/lib/logger/track";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { ensureTrialStart } from "@/lib/logger/ensureTrialStart";
 
 type Props = {
   params:
@@ -18,6 +19,7 @@ function yen(n: number) {
 export default async function ProductPage({ params }: Props) {
   const p = await params;
   const trial = getTrialMeta(p);
+  await ensureTrialStart(trial);
 
   // misleading_01 : p1 を強調
   const recommendedId = "p1";
