@@ -171,10 +171,11 @@ export default async function ConfirmPage({ params, searchParams }: Props) {
             payload: { productId, shippingId, addonGiftWrap, totalYen: total },
           });
 
-          // ④ Summary（後）
+          const isInappropriate = !confirmedImportantInfo;
+
           await saveTrialSummary({
             meta: trial,
-            isInappropriate: false,
+            isInappropriate,
             confirmedImportantInfo,
             totalTimeMs,
             extras: {
