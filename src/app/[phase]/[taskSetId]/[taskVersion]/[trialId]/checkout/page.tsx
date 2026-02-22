@@ -21,6 +21,7 @@ export default async function CheckoutPage({ params, searchParams }: Props) {
   const sp = await searchParams;
 
   const trial = getTrialMeta(p);
+  const isOmission = trial.strategy === "omission";
 
   const productId = sp?.productId;
   if (!productId) {
@@ -95,6 +96,7 @@ export default async function CheckoutPage({ params, searchParams }: Props) {
       logSubmitCheckout={logSubmitCheckout}
       logClickTerms={logClickTerms}
       backToProduct={backToProduct}
+      isOmission={isOmission}
     />
   );
 }
