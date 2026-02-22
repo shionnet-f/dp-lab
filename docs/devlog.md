@@ -708,3 +708,23 @@ TrialSummary に自動で保存できる状態にする。
 
 - Commit17でDP4分類（misleading/omission/pressure/obstruction）を最低1本ずつ実装し、
   isInappropriate / confirmedImportantInfo / totalTimeMs を条件間で比較可能にする。
+
+## commit 17: 各分類を1つずつ用意
+
+misleading / omission / pressure / obstruction を最低1本ずつ実装。
+
+## 目的
+
+実験条件を4分類で比較可能にする。
+
+## 内容
+
+- trialConfigを4本化
+- Homeから試行選択可能に
+- obstructionのみgateを経由
+- すべてのtrialで完走・集約可能
+
+## 動作確認
+
+- 各trialでTrialSummary保存確認
+- confirmedImportantInfo / isInappropriate / totalTimeMs 正常
