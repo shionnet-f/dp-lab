@@ -4,42 +4,46 @@ import { getTrialMeta } from "@/lib/logger/getTrialMeta";
 import { track } from "@/lib/logger/track";
 import { redirect } from "next/navigation";
 import { ensureTrialStart } from "@/lib/logger/ensureTrialStart";
+import { requirePid } from "@/lib/logger/requirePid";
 
+type SearchParams = { pid?: string };
 type Props = {
   params:
     | { phase: string; taskSetId: string; taskVersion: string; trialId: string }
     | Promise<{ phase: string; taskSetId: string; taskVersion: string; trialId: string }>;
+  searchParams?: SearchParams | Promise<SearchParams>;
 };
 
 function yen(n: number) {
   return new Intl.NumberFormat("ja-JP").format(n);
 }
 
-export default async function ProductPage({ params }: Props) {
+export default async function ProductPage({ params, searchParams }: Props) {
   const p = await params;
+  const sp = await searchParams;
+
+  const pid = requirePid(sp);
   const trial = getTrialMeta(p);
 
-  const trialRunId = await ensureTrialStart(trial);
-  const trialWithRun = { ...trial, trialRunId };
+  const trialBase = { ...trial, participantId: pid };
 
-  // misleading_01 : p1 を強調
+  const rid = await ensureTrialStart(trialBase);
+  const trialWithRun = { ...trialBase, trialRunId: rid };
+
   const recommendedId = "p1";
 
   async function logClickProduct(productId: string) {
     "use server";
     await track(trialWithRun, { page: "product", type: "click_product", payload: { productId } });
   }
-
   async function logDetailOpen(productId: string) {
     "use server";
     await track(trialWithRun, { page: "product", type: "detail_open", payload: { productId } });
   }
-
   async function logDetailClose(productId: string) {
     "use server";
     await track(trialWithRun, { page: "product", type: "detail_close", payload: { productId } });
   }
-
   async function logSubmitSelect(productId: string) {
     "use server";
     await track(trialWithRun, { page: "product", type: "submit_select", payload: { productId } });
@@ -89,7 +93,6 @@ export default async function ProductPage({ params }: Props) {
                 >
                   <div className="space-y-3">
                     <div className="text-gray-800">{product.description}</div>
-
                     <div className="rounded border bg-gray-50 p-3 text-xs text-gray-700">
                       <div className="font-semibold">重要条件（例）</div>
                       <ul className="mt-1 list-disc pl-5 space-y-1">
@@ -106,14 +109,15 @@ export default async function ProductPage({ params }: Props) {
                   "use server";
                   await logSubmitSelect(product.id);
 
+                  const qs = new URLSearchParams({ pid, rid, productId: product.id });
                   redirect(
-                    `/${p.phase}/${p.taskSetId}/${p.taskVersion}/${p.trialId}/checkout?productId=${encodeURIComponent(product.id)}`,
+                    `/${p.phase}/${p.taskSetId}/${p.taskVersion}/${p.trialId}/checkout?${qs}`,
                   );
                 }}
               >
                 <button
                   type="submit"
-                  className="block w-full rounded bg-black px-3 py-2 text-center text-white"
+                  className="block w-full rounded bg-black px-3 py-2 text-white"
                 >
                   この商品を選ぶ
                 </button>

@@ -3,12 +3,12 @@
 import { prisma } from "@/lib/db";
 import type { TrialMeta } from "@/lib/logger/types";
 import { track } from "@/lib/logger/track";
-import { randomUUID } from "crypto";
 
 type AnyMeta = any;
 
-function sameTrialNoRun(t: any, trial: TrialMeta) {
+function sameTrial(t: any, trial: TrialMeta) {
   return (
+    t?.participantId === trial.participantId &&
     t?.phase === trial.phase &&
     t?.taskSetId === trial.taskSetId &&
     t?.taskVersion === trial.taskVersion &&
@@ -20,8 +20,8 @@ function sameTrialNoRun(t: any, trial: TrialMeta) {
 }
 
 /**
- * このtrialの「直近のsubmit_confirm以降」に trial_start が無ければ作る（暫定）
- * + Commit18: trialRunId を確定し返す（1試行=1 run）
+ * このtrial（+pid）の「直近のsubmit_confirm以降」に trial_start が無ければ作る。
+ * 作成/既存を問わず trialRunId を返す。
  */
 export async function ensureTrialStart(trial: TrialMeta): Promise<string> {
   const rows = await prisma.eventLog.findMany({
@@ -31,34 +31,36 @@ export async function ensureTrialStart(trial: TrialMeta): Promise<string> {
     select: { type: true, ts: true, meta: true },
   });
 
-  // 直近 submit_confirm を境界にする（これ自体は暫定思想のまま）
+  // 直近 submit_confirm を境界にする（暫定）
   let lastSubmitTs: number | null = null;
   for (const r of rows) {
     if (r.type !== "submit_confirm") continue;
     const t = (r.meta as AnyMeta)?.trial;
-    if (!sameTrialNoRun(t, trial)) continue;
+    if (!sameTrial(t, trial)) continue;
     lastSubmitTs = r.ts;
     break;
   }
   const boundary = lastSubmitTs ?? -Infinity;
 
-  // boundary以降の trial_start があるなら、その runId を返す
+  // boundary以降に trial_start があるなら、そのtrialRunIdを返す
   for (const r of rows) {
     if (r.type !== "trial_start") continue;
     if (r.ts <= boundary) continue;
 
     const t = (r.meta as AnyMeta)?.trial;
-    if (!sameTrialNoRun(t, trial)) continue;
+    if (!sameTrial(t, trial)) continue;
 
-    const runId = t?.trialRunId;
-    if (typeof runId === "string" && runId.length > 0) return runId;
+    const rid = t?.trialRunId;
+    if (typeof rid === "string" && rid.length > 0) return rid;
 
-    // runId欠損の古いデータが混ざってる場合は新規runを発行する
     break;
   }
+  const rid = crypto.randomUUID();
 
-  // 無いので新規runを発行して trial_start を作る
-  const trialRunId = randomUUID();
-  await track({ ...trial, trialRunId }, { page: "product", type: "trial_start" });
-  return trialRunId;
+  await track(
+    { ...trial, trialRunId: rid },
+    { page: "product", type: "trial_start", payload: { trialRunId: rid } },
+  );
+
+  return rid;
 }

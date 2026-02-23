@@ -7,22 +7,42 @@ const trials = [
   { trialId: "t003", label: "t003 obstruction_01（到達を面倒にする）" },
 ] as const;
 
-function buildUrl(trialId: string) {
+type SearchParams = { pid?: string };
+
+function buildUrl(trialId: string, pid: string) {
   const phase = "pre";
   const taskSetId = "A";
   const taskVersion = "A1";
-  return `/${phase}/${taskSetId}/${taskVersion}/${trialId}/product`;
+  return `/${phase}/${taskSetId}/${taskVersion}/${trialId}/product?pid=${encodeURIComponent(pid)}`;
 }
 
-export default function Home() {
+export default async function Home({
+  searchParams,
+}: {
+  searchParams?: SearchParams | Promise<SearchParams>;
+}) {
+  const sp = await searchParams;
+  const pid = sp?.pid?.trim();
+
   return (
     <main className="p-6 space-y-4">
       <h1 className="text-xl font-bold">dp-lab 実験課題</h1>
-      <p className="text-sm text-gray-600">試行（trial）を選んで開始します。</p>
+
+      {!pid ? (
+        <div className="rounded border bg-yellow-50 p-3 text-sm text-gray-800">
+          pid が未設定です。
+          <Link className="underline" href="/start">
+            /start
+          </Link>{" "}
+          から開始してください。
+        </div>
+      ) : (
+        <p className="text-sm text-gray-600">pid: {pid}</p>
+      )}
 
       <div className="space-y-2">
         {trials.map((t) => {
-          const href = buildUrl(t.trialId);
+          const href = pid ? buildUrl(t.trialId, pid) : "/start";
           return (
             <div
               key={t.trialId}

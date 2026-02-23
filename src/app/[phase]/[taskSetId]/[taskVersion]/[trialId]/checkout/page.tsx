@@ -2,9 +2,13 @@ import CheckoutClient from "./CheckoutClient";
 import { getTrialMeta } from "@/lib/logger/getTrialMeta";
 import { track } from "@/lib/logger/track";
 import { redirect } from "next/navigation";
-import { ensureTrialStart } from "@/lib/logger/ensureTrialStart";
+import { requirePid } from "@/lib/logger/requirePid";
+import { requireRid } from "@/lib/logger/requireRid";
 
 type SearchParams = {
+  pid?: string;
+  rid?: string;
+
   productId?: string;
   shippingId?: string;
   addonGiftWrap?: string;
@@ -21,16 +25,16 @@ export default async function CheckoutPage({ params, searchParams }: Props) {
   const p = await params;
   const sp = await searchParams;
 
-  const trial = getTrialMeta(p);
-  const trialRunId = await ensureTrialStart(trial);
-  const trialWithRun = { ...trial, trialRunId };
+  const pid = requirePid(sp);
+  const rid = requireRid(sp);
 
-  const isOmission = trialWithRun.strategy === "omission";
+  const trial = getTrialMeta(p);
+  const trialWithRun = { ...trial, participantId: pid, trialRunId: rid };
+
+  const isOmission = trial.strategy === "omission";
 
   const productId = sp?.productId;
-  if (!productId) {
-    throw new Error("Missing productId in checkout");
-  }
+  if (!productId) throw new Error("Missing productId in checkout");
 
   const baseUrl = `/${p.phase}/${p.taskSetId}/${p.taskVersion}/${p.trialId}`;
 
@@ -90,12 +94,14 @@ export default async function CheckoutPage({ params, searchParams }: Props) {
       type: "back_to_product",
       payload: { productId },
     });
-    redirect(`${baseUrl}/product`);
+    redirect(`${baseUrl}/product?` + new URLSearchParams({ pid }).toString());
   }
 
   return (
     <CheckoutClient
       baseUrl={baseUrl}
+      pid={pid}
+      rid={rid}
       productId={productId}
       initialShippingId={initialShippingId}
       initialAddonGiftWrap={initialAddonGiftWrap}
