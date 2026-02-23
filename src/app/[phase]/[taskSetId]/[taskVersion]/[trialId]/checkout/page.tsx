@@ -2,6 +2,7 @@ import CheckoutClient from "./CheckoutClient";
 import { getTrialMeta } from "@/lib/logger/getTrialMeta";
 import { track } from "@/lib/logger/track";
 import { redirect } from "next/navigation";
+import { ensureTrialStart } from "@/lib/logger/ensureTrialStart";
 
 type SearchParams = {
   productId?: string;
@@ -21,11 +22,13 @@ export default async function CheckoutPage({ params, searchParams }: Props) {
   const sp = await searchParams;
 
   const trial = getTrialMeta(p);
-  const isOmission = trial.strategy === "omission";
+  const trialRunId = await ensureTrialStart(trial);
+  const trialWithRun = { ...trial, trialRunId };
+
+  const isOmission = trialWithRun.strategy === "omission";
 
   const productId = sp?.productId;
   if (!productId) {
-    // ✅ Commit08: unknownを残さない
     throw new Error("Missing productId in checkout");
   }
 
@@ -34,25 +37,32 @@ export default async function CheckoutPage({ params, searchParams }: Props) {
   const initialShippingId = sp?.shippingId ?? "normal";
   const initialAddonGiftWrap = sp?.addonGiftWrap === "true";
 
-  // --- server actions（clientに渡す） ---
   async function logPageView() {
     "use server";
-    await track(trial, { page: "checkout", type: "page_view", payload: { productId } });
+    await track(trialWithRun, { page: "checkout", type: "page_view", payload: { productId } });
   }
 
   async function logDetailOpen(target: "shipping" | "addon") {
     "use server";
-    await track(trial, { page: "checkout", type: "detail_open", payload: { target, productId } });
+    await track(trialWithRun, {
+      page: "checkout",
+      type: "detail_open",
+      payload: { target, productId },
+    });
   }
 
   async function logDetailClose(target: "shipping" | "addon") {
     "use server";
-    await track(trial, { page: "checkout", type: "detail_close", payload: { target, productId } });
+    await track(trialWithRun, {
+      page: "checkout",
+      type: "detail_close",
+      payload: { target, productId },
+    });
   }
 
   async function logOptionChange(field: "shipping" | "addon_gift_wrap", value: string | boolean) {
     "use server";
-    await track(trial, {
+    await track(trialWithRun, {
       page: "checkout",
       type: "option_change",
       payload: { productId, field, value },
@@ -61,7 +71,7 @@ export default async function CheckoutPage({ params, searchParams }: Props) {
 
   async function logSubmitCheckout(finalShippingId: string, finalAddonGiftWrap: boolean) {
     "use server";
-    await track(trial, {
+    await track(trialWithRun, {
       page: "checkout",
       type: "submit_checkout",
       payload: { productId, finalShippingId, finalAddonGiftWrap },
@@ -70,12 +80,12 @@ export default async function CheckoutPage({ params, searchParams }: Props) {
 
   async function logClickTerms() {
     "use server";
-    await track(trial, { page: "checkout", type: "click_terms", payload: { productId } });
+    await track(trialWithRun, { page: "checkout", type: "click_terms", payload: { productId } });
   }
 
   async function backToProduct() {
     "use server";
-    await track(trial, {
+    await track(trialWithRun, {
       page: "checkout",
       type: "back_to_product",
       payload: { productId },

@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getTrialMeta } from "@/lib/logger/getTrialMeta";
 import { track } from "@/lib/logger/track";
+import { ensureTrialStart } from "@/lib/logger/ensureTrialStart";
 
 type SearchParams = { productId?: string; returnTo?: string };
 type Props = {
@@ -13,7 +14,10 @@ type Props = {
 export default async function GatePage({ params, searchParams }: Props) {
   const p = await params;
   const sp = await searchParams;
+
   const trial = getTrialMeta(p);
+  const trialRunId = await ensureTrialStart(trial);
+  const trialWithRun = { ...trial, trialRunId };
 
   const productId = sp?.productId;
   if (!productId) throw new Error("Missing productId in gate");
@@ -23,7 +27,7 @@ export default async function GatePage({ params, searchParams }: Props) {
 
   async function proceed() {
     "use server";
-    await track(trial, {
+    await track(trialWithRun, {
       page: "confirm",
       type: "obstruction_gate_proceed",
       payload: { productId },

@@ -2,7 +2,6 @@ import DetailModal from "@/app/components/DetailModal";
 import { products6 } from "@/config/products";
 import { getTrialMeta } from "@/lib/logger/getTrialMeta";
 import { track } from "@/lib/logger/track";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ensureTrialStart } from "@/lib/logger/ensureTrialStart";
 
@@ -19,29 +18,31 @@ function yen(n: number) {
 export default async function ProductPage({ params }: Props) {
   const p = await params;
   const trial = getTrialMeta(p);
-  await ensureTrialStart(trial);
+
+  const trialRunId = await ensureTrialStart(trial);
+  const trialWithRun = { ...trial, trialRunId };
 
   // misleading_01 : p1 を強調
   const recommendedId = "p1";
 
   async function logClickProduct(productId: string) {
     "use server";
-    await track(trial, { page: "product", type: "click_product", payload: { productId } });
+    await track(trialWithRun, { page: "product", type: "click_product", payload: { productId } });
   }
 
   async function logDetailOpen(productId: string) {
     "use server";
-    await track(trial, { page: "product", type: "detail_open", payload: { productId } });
+    await track(trialWithRun, { page: "product", type: "detail_open", payload: { productId } });
   }
 
   async function logDetailClose(productId: string) {
     "use server";
-    await track(trial, { page: "product", type: "detail_close", payload: { productId } });
+    await track(trialWithRun, { page: "product", type: "detail_close", payload: { productId } });
   }
 
   async function logSubmitSelect(productId: string) {
     "use server";
-    await track(trial, { page: "product", type: "submit_select", payload: { productId } });
+    await track(trialWithRun, { page: "product", type: "submit_select", payload: { productId } });
   }
 
   return (
@@ -80,7 +81,6 @@ export default async function ProductPage({ params }: Props) {
                   </button>
                 </form>
 
-                {/* モーダル */}
                 <DetailModal
                   title={`${product.name} の詳細`}
                   triggerLabel="詳細を見る"
@@ -90,7 +90,6 @@ export default async function ProductPage({ params }: Props) {
                   <div className="space-y-3">
                     <div className="text-gray-800">{product.description}</div>
 
-                    {/* 重要条件(将来的にomission_01で使うかも) */}
                     <div className="rounded border bg-gray-50 p-3 text-xs text-gray-700">
                       <div className="font-semibold">重要条件（例）</div>
                       <ul className="mt-1 list-disc pl-5 space-y-1">
@@ -105,12 +104,7 @@ export default async function ProductPage({ params }: Props) {
               <form
                 action={async () => {
                   "use server";
-
-                  await track(trial, {
-                    page: "product",
-                    type: "select_product",
-                    payload: { productId: product.id },
-                  });
+                  await logSubmitSelect(product.id);
 
                   redirect(
                     `/${p.phase}/${p.taskSetId}/${p.taskVersion}/${p.trialId}/checkout?productId=${encodeURIComponent(product.id)}`,
