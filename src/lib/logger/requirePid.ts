@@ -1,5 +1,5 @@
-export function requirePid(sp: { pid?: string } | undefined): string {
-  const pid = sp?.pid?.trim();
-  if (!pid) throw new Error("Missing pid. Start from /start.");
+export function requirePid(sp?: { pid?: string } | null): string {
+  const pid = sp?.pid;
+  if (!pid) throw new Error("Missing pid");
   return pid;
 }

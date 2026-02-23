@@ -6,7 +6,8 @@ import { redirect } from "next/navigation";
 import { ensureTrialStart } from "@/lib/logger/ensureTrialStart";
 import { requirePid } from "@/lib/logger/requirePid";
 
-type SearchParams = { pid?: string };
+type SearchParams = { pid?: string; rid?: string };
+
 type Props = {
   params:
     | { phase: string; taskSetId: string; taskVersion: string; trialId: string }
@@ -23,30 +24,31 @@ export default async function ProductPage({ params, searchParams }: Props) {
   const sp = await searchParams;
 
   const pid = requirePid(sp);
-  const trial = getTrialMeta(p);
+  const baseTrial = getTrialMeta(p);
 
-  const trialBase = { ...trial, participantId: pid };
-
-  const rid = await ensureTrialStart(trialBase);
-  const trialWithRun = { ...trialBase, trialRunId: rid };
+  const rid = await ensureTrialStart({ ...baseTrial, participantId: pid, trialRunId: sp?.rid });
+  const trial = { ...baseTrial, participantId: pid, trialRunId: rid };
 
   const recommendedId = "p1";
 
   async function logClickProduct(productId: string) {
     "use server";
-    await track(trialWithRun, { page: "product", type: "click_product", payload: { productId } });
+    await track(trial, { page: "product", type: "click_product", payload: { productId } });
   }
+
   async function logDetailOpen(productId: string) {
     "use server";
-    await track(trialWithRun, { page: "product", type: "detail_open", payload: { productId } });
+    await track(trial, { page: "product", type: "detail_open", payload: { productId } });
   }
+
   async function logDetailClose(productId: string) {
     "use server";
-    await track(trialWithRun, { page: "product", type: "detail_close", payload: { productId } });
+    await track(trial, { page: "product", type: "detail_close", payload: { productId } });
   }
+
   async function logSubmitSelect(productId: string) {
     "use server";
-    await track(trialWithRun, { page: "product", type: "submit_select", payload: { productId } });
+    await track(trial, { page: "product", type: "submit_select", payload: { productId } });
   }
 
   return (
@@ -109,15 +111,15 @@ export default async function ProductPage({ params, searchParams }: Props) {
                   "use server";
                   await logSubmitSelect(product.id);
 
-                  const qs = new URLSearchParams({ pid, rid, productId: product.id });
                   redirect(
-                    `/${p.phase}/${p.taskSetId}/${p.taskVersion}/${p.trialId}/checkout?${qs}`,
+                    `/${p.phase}/${p.taskSetId}/${p.taskVersion}/${p.trialId}/checkout?` +
+                      new URLSearchParams({ pid, rid, productId: product.id }).toString(),
                   );
                 }}
               >
                 <button
                   type="submit"
-                  className="block w-full rounded bg-black px-3 py-2 text-white"
+                  className="block w-full rounded bg-black px-3 py-2 text-center text-white"
                 >
                   この商品を選ぶ
                 </button>

@@ -1,5 +1,5 @@
-export function requireRid(sp: { rid?: string } | undefined): string {
-  const rid = sp?.rid?.trim();
-  if (!rid) throw new Error("Missing rid (trialRunId). Start from product with ensureTrialStart.");
+export function requireRid(sp?: { rid?: string } | null): string {
+  const rid = sp?.rid;
+  if (!rid) throw new Error("Missing rid");
   return rid;
 }

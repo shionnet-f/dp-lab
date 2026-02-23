@@ -16,7 +16,6 @@ type Props = {
   baseUrl: string;
   pid: string;
   rid: string;
-
   productId: string;
 
   logPageView: () => Promise<void>;
@@ -32,7 +31,6 @@ type Props = {
 
   initialShippingId: string;
   initialAddonGiftWrap: boolean;
-
   isOmission: boolean;
 };
 
@@ -53,7 +51,6 @@ export default function CheckoutClient({
   isOmission,
 }: Props) {
   const router = useRouter();
-
   const [shippingId, setShippingId] = useState(initialShippingId);
   const [addonGiftWrap, setAddonGiftWrap] = useState(initialAddonGiftWrap);
 
@@ -70,9 +67,7 @@ export default function CheckoutClient({
     <main className="p-6 space-y-6">
       <h1 className="text-xl font-bold">配送・オプション</h1>
 
-      <div className="text-sm text-gray-600 break-words">
-        pid: {pid} / rid: {rid} / productId: {productId}
-      </div>
+      <div className="text-sm text-gray-600">productId: {productId}</div>
 
       <button
         className="text-sm underline text-gray-700"
@@ -193,22 +188,12 @@ export default function CheckoutClient({
         </button>
       </div>
 
-      {/* 合計 */}
-      <section className="rounded-lg border bg-white p-4 shadow-sm space-y-2">
-        <h2 className="font-semibold text-gray-900">合計</h2>
-        <div className="text-sm text-gray-700">商品: ¥{yen(productPrice)}</div>
-        <div className="text-sm text-gray-700">配送: ¥{yen(shippingPrice)}</div>
-        <div className="text-sm text-gray-700">オプション: ¥{yen(addonPrice)}</div>
-        <div className="pt-2 border-t font-semibold">合計: ¥{yen(total)}</div>
-      </section>
-
       <form action={backToProduct}>
         <button type="submit" className="rounded border px-3 py-2 text-sm">
           商品一覧へ戻る
         </button>
       </form>
 
-      {/* confirm */}
       <button
         type="button"
         className="rounded bg-blue-600 px-4 py-2 text-white"
