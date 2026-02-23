@@ -4,6 +4,7 @@ import { track } from "@/lib/logger/track";
 import { saveTrialSummary } from "@/lib/logger/saveTrialSummary";
 import { hasViewedTerms } from "@/lib/logger/hasViewedTerms";
 import { calcTotalTimeMs } from "@/lib/logger/calcTotalTimeMs";
+import { ensureTrialStart } from "@/lib/logger/ensureTrialStart";
 
 type SearchParams = {
   productId?: string;
@@ -31,9 +32,11 @@ export default async function ConfirmPage({ params, searchParams }: Props) {
   const sp = await searchParams;
 
   const trial = getTrialMeta(p);
+  const trialRunId = await ensureTrialStart(trial);
+  const trialWithRun = { ...trial, trialRunId };
 
-  const isPressure = trial.strategy === "pressure";
-  const isObstruction = trial.strategy === "obstruction";
+  const isPressure = trialWithRun.strategy === "pressure";
+  const isObstruction = trialWithRun.strategy === "obstruction";
 
   const productId = sp?.productId;
   if (!productId) throw new Error("Missing productId in confirm");
@@ -47,10 +50,9 @@ export default async function ConfirmPage({ params, searchParams }: Props) {
 
   const baseUrl = `/${p.phase}/${p.taskSetId}/${p.taskVersion}/${p.trialId}`;
 
-  // 到達ログ（手動ボタンでOK。後で自動化しても良い）
   async function logPageView() {
     "use server";
-    await track(trial, {
+    await track(trialWithRun, {
       page: "confirm",
       type: "page_view",
       payload: { productId, shippingId, addonGiftWrap },
@@ -60,6 +62,7 @@ export default async function ConfirmPage({ params, searchParams }: Props) {
   return (
     <main className="p-6 space-y-6">
       <h1 className="text-xl font-bold">注文内容の確認</h1>
+
       {isPressure ? (
         <div className="rounded border bg-yellow-50 p-3 text-sm text-gray-800">
           <div className="font-semibold">本日中の手続きがおすすめです</div>
@@ -79,7 +82,6 @@ export default async function ConfirmPage({ params, searchParams }: Props) {
         </button>
       </form>
 
-      {/* 明細 */}
       <section className="rounded border bg-white p-4 space-y-2">
         <div className="flex items-center justify-between">
           <div className="font-semibold">明細</div>
@@ -87,7 +89,7 @@ export default async function ConfirmPage({ params, searchParams }: Props) {
           <form
             action={async () => {
               "use server";
-              await track(trial, {
+              await track(trialWithRun, {
                 page: "confirm",
                 type: "click_expand_breakdown",
                 payload: { productId },
@@ -111,12 +113,11 @@ export default async function ConfirmPage({ params, searchParams }: Props) {
         <div className="pt-2 border-t font-semibold">合計: ¥{yen(total)}</div>
       </section>
 
-      {/* 変更導線：ログ→redirect */}
       <div className="flex flex-wrap gap-3">
         <form
           action={async () => {
             "use server";
-            await track(trial, {
+            await track(trialWithRun, {
               page: "confirm",
               type: "back_to_checkout",
               payload: { productId },
@@ -139,7 +140,7 @@ export default async function ConfirmPage({ params, searchParams }: Props) {
         <form
           action={async () => {
             "use server";
-            await track(trial, {
+            await track(trialWithRun, {
               page: "confirm",
               type: "go_terms",
               payload: { productId },
@@ -172,19 +173,15 @@ export default async function ConfirmPage({ params, searchParams }: Props) {
         </form>
       </div>
 
-      {/* 確定：ログ→完了ページはまだ無いので一旦同ページに留める/後でredirect */}
       <form
         action={async () => {
           "use server";
 
-          // ① 判定（先）
-          const confirmedImportantInfo = await hasViewedTerms(trial);
+          // ✅ runに閉じた判定
+          const confirmedImportantInfo = await hasViewedTerms(trialWithRun);
+          const totalTimeMs = await calcTotalTimeMs(trialWithRun);
 
-          // ② 時間計算（先）
-          const totalTimeMs = await calcTotalTimeMs(trial);
-
-          // ③ 確定ログ（後）
-          await track(trial, {
+          await track(trialWithRun, {
             page: "confirm",
             type: "submit_confirm",
             payload: { productId, shippingId, addonGiftWrap, totalYen: total },
@@ -193,16 +190,11 @@ export default async function ConfirmPage({ params, searchParams }: Props) {
           const isInappropriate = !confirmedImportantInfo;
 
           await saveTrialSummary({
-            meta: trial,
+            meta: trialWithRun,
             isInappropriate,
             confirmedImportantInfo,
             totalTimeMs,
-            extras: {
-              productId,
-              shippingId,
-              addonGiftWrap,
-              totalYen: total,
-            },
+            extras: { productId, shippingId, addonGiftWrap, totalYen: total },
           });
 
           redirect(`${baseUrl}/product`);

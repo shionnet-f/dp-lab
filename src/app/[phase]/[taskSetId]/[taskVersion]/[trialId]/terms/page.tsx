@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getTrialMeta } from "@/lib/logger/getTrialMeta";
 import { track } from "@/lib/logger/track";
 import TermsViewLogger from "./TermsViewLogger";
+import { ensureTrialStart } from "@/lib/logger/ensureTrialStart";
 
 type SearchParams = { productId?: string; returnTo?: string };
 
@@ -17,6 +18,8 @@ export default async function TermsPage({ params, searchParams }: Props) {
   const sp = await searchParams;
 
   const trial = getTrialMeta(p);
+  const trialRunId = await ensureTrialStart(trial);
+  const trialWithRun = { ...trial, trialRunId };
 
   const productId = sp?.productId;
   if (!productId) throw new Error("Missing productId in terms");
@@ -35,7 +38,7 @@ export default async function TermsPage({ params, searchParams }: Props) {
 
   async function logView() {
     "use server";
-    await track(trial, { page: "terms", type: "view_terms", payload: { productId } });
+    await track(trialWithRun, { page: "terms", type: "view_terms", payload: { productId } });
   }
 
   return (
@@ -62,7 +65,7 @@ export default async function TermsPage({ params, searchParams }: Props) {
       <form
         action={async () => {
           "use server";
-          await track(trial, {
+          await track(trialWithRun, {
             page: "terms",
             type: "back_to_confirm",
             payload: { productId },

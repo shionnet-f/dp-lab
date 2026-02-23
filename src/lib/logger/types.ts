@@ -7,25 +7,27 @@ export type Strategy = "misleading" | "omission" | "pressure" | "obstruction";
 export type Variant = "A" | "B";
 
 export type TrialMeta = {
-    participantId?: string; // 後でセッションから付与する想定（今は任意）
-    sessionId?: string;
+  participantId?: string; // 後でセッションから付与する想定（今は任意）
+  sessionId?: string;
 
-    phase: Phase;
-    taskSetId: TaskSetId;
-    taskVersion: TaskVersion;
+  trialRunId?: string;
 
-    trialId: string;        // 例: "t001"
-    orderInSession?: number;
+  phase: Phase;
+  taskSetId: TaskSetId;
+  taskVersion: TaskVersion;
 
-    strategy: Strategy;
-    flowId: string;         // 例: "omission_02"
-    variant: Variant;       // "A" | "B"
+  trialId: string; // 例: "t001"
+  orderInSession?: number;
+
+  strategy: Strategy;
+  flowId: string; // 例: "omission_02"
+  variant: Variant; // "A" | "B"
 };
 
 export type TrackEventInput = {
-    ts?: number;
-    page: "product" | "checkout" | "confirm" | "terms";
-    type: string; // 例: "button_click" / "modal_open" など
-    meta?: Prisma.InputJsonValue;
-    payload?: Prisma.InputJsonValue;
+  ts?: number;
+  page: "product" | "checkout" | "confirm" | "terms";
+  type: string; // 例: "button_click" / "modal_open" など
+  meta?: Prisma.InputJsonValue;
+  payload?: Prisma.InputJsonValue;
 };

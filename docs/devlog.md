@@ -728,3 +728,58 @@ misleading / omission / pressure / obstruction を最低1本ずつ実装。
 
 - 各trialでTrialSummary保存確認
 - confirmedImportantInfo / isInappropriate / totalTimeMs 正常
+
+## Commit 18: trialRunId 導入（1試行境界の確定）
+
+### 目的
+
+trialId / strategy は「条件」を表すが、
+同一条件での再試行や途中離脱後の再実行がある場合、
+`view_terms` や `trial_start` の判定が過去ログと混ざる可能性があった。
+
+そこで「1購入フロー（1試行）」を一意に識別する `trialRunId` を導入し、
+判定・計測を run 単位に閉じる。
+
+---
+
+### 実装内容
+
+- `TrialMeta` に `trialRunId` を追加
+- `ensureTrialStart()` で trial_start 作成時に `trialRunId` を発行
+- 各ページで `trialWithRun` を生成し、`track()` に渡すよう統一
+- `hasViewedTerms` / `calcTotalTimeMs` を trialRunId 一致判定へ変更
+- `TrialSummary.meta` に trialRunId を保存
+
+---
+
+### 設計判断
+
+#### condition と run の分離
+
+- condition：strategy / flowId / variant
+- run：trialRunId（今回の1回の実行）
+
+trialId は条件参照キーであり、試行境界ではない。
+境界は trialRunId によって確定する。
+
+#### 単一タブ前提
+
+本実験は単一タブ操作を前提とする。
+並行タブ操作は実験条件外とし、データ品質保証の対象外とする。
+
+---
+
+### 動作確認
+
+- 1試行内の EventLog で trialRunId が一致する
+- 同一 trialId を連続実行すると trialRunId が変わる
+- terms未閲覧 → confirmedImportantInfo=false
+- terms閲覧 → confirmedImportantInfo=true
+- totalTimeMs が 0 にならない
+
+---
+
+### 到達状態
+
+- 判定・時間計測が「今回の1試行」に閉じた
+- 過去ログ汚染のリスクを構造的に排除できた
