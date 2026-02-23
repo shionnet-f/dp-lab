@@ -14,9 +14,11 @@ const shippingOptions = [
 
 type Props = {
   baseUrl: string;
+  pid: string;
+  rid: string;
+
   productId: string;
 
-  // server actions（serverから渡す）
   logPageView: () => Promise<void>;
   logDetailOpen: (target: "shipping" | "addon") => Promise<void>;
   logDetailClose: (target: "shipping" | "addon") => Promise<void>;
@@ -36,6 +38,8 @@ type Props = {
 
 export default function CheckoutClient({
   baseUrl,
+  pid,
+  rid,
   productId,
   logPageView,
   logDetailOpen,
@@ -66,7 +70,9 @@ export default function CheckoutClient({
     <main className="p-6 space-y-6">
       <h1 className="text-xl font-bold">配送・オプション</h1>
 
-      <div className="text-sm text-gray-600">productId: {productId}</div>
+      <div className="text-sm text-gray-600 break-words">
+        pid: {pid} / rid: {rid} / productId: {productId}
+      </div>
 
       <button
         className="text-sm underline text-gray-700"
@@ -160,19 +166,26 @@ export default function CheckoutClient({
           </div>
         </label>
       </section>
+
+      {/* terms */}
       <div className="text-sm">
         <button
           type="button"
           className={isOmission ? "text-xs text-gray-400 underline" : "underline text-gray-700"}
           onClick={async () => {
             await logClickTerms();
+
             const returnToQs = new URLSearchParams({
+              pid,
+              rid,
               productId,
               shippingId,
               addonGiftWrap: String(addonGiftWrap),
             });
+
             const returnTo = `${baseUrl}/checkout?${returnToQs.toString()}`;
-            const qs = new URLSearchParams({ productId, returnTo });
+
+            const qs = new URLSearchParams({ pid, rid, productId, returnTo });
             router.push(`${baseUrl}/terms?${qs.toString()}`);
           }}
         >
@@ -195,7 +208,7 @@ export default function CheckoutClient({
         </button>
       </form>
 
-      {/* 次へ */}
+      {/* confirm */}
       <button
         type="button"
         className="rounded bg-blue-600 px-4 py-2 text-white"
@@ -203,6 +216,8 @@ export default function CheckoutClient({
           await logSubmitCheckout(shippingId, addonGiftWrap);
 
           const qs = new URLSearchParams({
+            pid,
+            rid,
             productId,
             shippingId,
             addonGiftWrap: String(addonGiftWrap),

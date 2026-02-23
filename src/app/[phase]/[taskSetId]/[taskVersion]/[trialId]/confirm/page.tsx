@@ -4,12 +4,16 @@ import { track } from "@/lib/logger/track";
 import { saveTrialSummary } from "@/lib/logger/saveTrialSummary";
 import { hasViewedTerms } from "@/lib/logger/hasViewedTerms";
 import { calcTotalTimeMs } from "@/lib/logger/calcTotalTimeMs";
-import { ensureTrialStart } from "@/lib/logger/ensureTrialStart";
+import { requirePid } from "@/lib/logger/requirePid";
+import { requireRid } from "@/lib/logger/requireRid";
 
 type SearchParams = {
+  pid?: string;
+  rid?: string;
+
   productId?: string;
   shippingId?: string;
-  addonGiftWrap?: string; // "true"/"false"
+  addonGiftWrap?: string;
 };
 
 type Props = {
@@ -31,12 +35,14 @@ export default async function ConfirmPage({ params, searchParams }: Props) {
   const p = await params;
   const sp = await searchParams;
 
-  const trial = getTrialMeta(p);
-  const trialRunId = await ensureTrialStart(trial);
-  const trialWithRun = { ...trial, trialRunId };
+  const pid = requirePid(sp);
+  const rid = requireRid(sp);
 
-  const isPressure = trialWithRun.strategy === "pressure";
-  const isObstruction = trialWithRun.strategy === "obstruction";
+  const trial = getTrialMeta(p);
+  const trialWithRun = { ...trial, participantId: pid, trialRunId: rid };
+
+  const isPressure = trial.strategy === "pressure";
+  const isObstruction = trial.strategy === "obstruction";
 
   const productId = sp?.productId;
   if (!productId) throw new Error("Missing productId in confirm");
@@ -73,7 +79,7 @@ export default async function ConfirmPage({ params, searchParams }: Props) {
       ) : null}
 
       <div className="text-xs text-gray-500 break-words">
-        trial: {p.phase}/{p.taskSetId}/{p.taskVersion}/{p.trialId}
+        pid: {pid} / rid: {rid} / trial: {p.phase}/{p.taskSetId}/{p.taskVersion}/{p.trialId}
       </div>
 
       <form action={logPageView}>
@@ -85,7 +91,6 @@ export default async function ConfirmPage({ params, searchParams }: Props) {
       <section className="rounded border bg-white p-4 space-y-2">
         <div className="flex items-center justify-between">
           <div className="font-semibold">明細</div>
-
           <form
             action={async () => {
               "use server";
@@ -109,11 +114,11 @@ export default async function ConfirmPage({ params, searchParams }: Props) {
         <div className="text-sm text-gray-700">
           ギフト包装: {addonGiftWrap ? "ON" : "OFF"}（¥{yen(addonPrice)}）
         </div>
-
         <div className="pt-2 border-t font-semibold">合計: ¥{yen(total)}</div>
       </section>
 
       <div className="flex flex-wrap gap-3">
+        {/* checkoutへ戻る */}
         <form
           action={async () => {
             "use server";
@@ -124,6 +129,8 @@ export default async function ConfirmPage({ params, searchParams }: Props) {
             });
 
             const qs = new URLSearchParams({
+              pid,
+              rid,
               productId,
               shippingId,
               addonGiftWrap: String(addonGiftWrap),
@@ -137,6 +144,7 @@ export default async function ConfirmPage({ params, searchParams }: Props) {
           </button>
         </form>
 
+        {/* termsへ */}
         <form
           action={async () => {
             "use server";
@@ -147,6 +155,8 @@ export default async function ConfirmPage({ params, searchParams }: Props) {
             });
 
             const qsConfirm = new URLSearchParams({
+              pid,
+              rid,
               productId,
               shippingId,
               addonGiftWrap: String(addonGiftWrap),
@@ -155,16 +165,12 @@ export default async function ConfirmPage({ params, searchParams }: Props) {
             const returnTo = `${baseUrl}/confirm?${qsConfirm.toString()}`;
 
             if (isObstruction) {
-              const qs = new URLSearchParams({
-                productId,
-                returnTo: `${baseUrl}/terms?productId=${encodeURIComponent(productId)}&returnTo=${encodeURIComponent(returnTo)}`,
-              });
+              const qs = new URLSearchParams({ pid, rid, productId, returnTo });
               redirect(`${baseUrl}/gate?${qs.toString()}`);
             }
 
-            redirect(
-              `${baseUrl}/terms?productId=${encodeURIComponent(productId)}&returnTo=${encodeURIComponent(returnTo)}`,
-            );
+            const qs = new URLSearchParams({ pid, rid, productId, returnTo });
+            redirect(`${baseUrl}/terms?${qs.toString()}`);
           }}
         >
           <button type="submit" className="rounded border px-3 py-2 text-sm">
@@ -173,11 +179,11 @@ export default async function ConfirmPage({ params, searchParams }: Props) {
         </form>
       </div>
 
+      {/* 確定 */}
       <form
         action={async () => {
           "use server";
 
-          // ✅ runに閉じた判定
           const confirmedImportantInfo = await hasViewedTerms(trialWithRun);
           const totalTimeMs = await calcTotalTimeMs(trialWithRun);
 
@@ -194,10 +200,11 @@ export default async function ConfirmPage({ params, searchParams }: Props) {
             isInappropriate,
             confirmedImportantInfo,
             totalTimeMs,
-            extras: { productId, shippingId, addonGiftWrap, totalYen: total },
+            extras: { pid, rid, productId, shippingId, addonGiftWrap, totalYen: total },
           });
 
-          redirect(`${baseUrl}/product`);
+          // 次の試行へ
+          redirect(`${baseUrl}/product?` + new URLSearchParams({ pid }).toString());
         }}
       >
         <button type="submit" className="rounded bg-black px-4 py-2 text-white">

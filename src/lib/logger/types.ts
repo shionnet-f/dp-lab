@@ -7,7 +7,7 @@ export type Strategy = "misleading" | "omission" | "pressure" | "obstruction";
 export type Variant = "A" | "B";
 
 export type TrialMeta = {
-  participantId?: string; // 後でセッションから付与する想定（今は任意）
+  participantId?: string;
   sessionId?: string;
 
   trialRunId?: string;

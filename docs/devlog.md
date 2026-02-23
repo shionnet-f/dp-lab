@@ -783,3 +783,94 @@ trialId は条件参照キーであり、試行境界ではない。
 
 - 判定・時間計測が「今回の1試行」に閉じた
 - 過去ログ汚染のリスクを構造的に排除できた
+
+## Commit 19: participantId（pid）と trialRunId（rid）の導入
+
+### 目的
+
+実験データの分析単位を完全に固定する。
+
+これまで trialId 単位でログを集約していたが、
+同一 trialId を複数回実行した場合にログが混在する可能性があった。
+
+本コミットでは、
+
+- participantId（被験者ID）
+- trialRunId（1試行ごとの一意ID）
+
+を導入し、
+
+> 1被験者 × 1試行 = 1境界
+
+を明確にする。
+
+---
+
+### 実装内容
+
+#### 1. participantId（pid）をURL必須化
+
+- 全ページで `pid` を必須パラメータとした
+- `requirePid()` により欠損時は即エラー（fail-fast）
+- TrialSummary / EventLog の meta に participantId を保存
+
+これにより、
+被験者単位での分析が可能になった。
+
+---
+
+#### 2. trialRunId（rid）の導入
+
+- `ensureTrialStart()` にて rid を発行
+- trial_start イベントに rid を付与
+- 全ページ遷移で rid をURLに保持
+- すべてのログに trialRunId を付与
+
+これにより、
+
+- 同一 trialId の複数試行でもログが混在しない
+- confirmedImportantInfo 判定が汚染されない
+- totalTimeMs が正しい境界で算出される
+
+---
+
+#### 3. 判定ロジックの境界固定
+
+- hasViewedTerms()
+- calcTotalTimeMs()
+
+を trialRunId 境界で評価する設計へ移行。
+
+---
+
+### 動作確認
+
+- 1試行完走で TrialSummary に1行追加
+- 同じ trialId を連続実行しても rid が異なる
+- 2回目の試行が1回目の view_terms に汚染されない
+- totalTimeMs が毎回 > 0
+- pid 欠損時は即エラー
+
+---
+
+### 到達状態
+
+- 分析単位：participantId × trialRunId
+- ログ汚染：防止済
+- 試行境界：完全固定
+
+実験装置として、
+
+> 「1行 = 1試行」
+
+が保証された状態に到達。
+
+---
+
+### 次フェーズ
+
+- Commit20：判定ロジックの完全 rid 基準化（sameTrial見直し）
+- Commit21：startページ（pid入力導線）
+- Commit22：CSV出力機能
+- Commit23：最小分析スクリプト
+- Commit24：実験運用手順の固定

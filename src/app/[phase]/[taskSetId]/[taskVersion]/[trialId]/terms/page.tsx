@@ -2,9 +2,10 @@ import { redirect } from "next/navigation";
 import { getTrialMeta } from "@/lib/logger/getTrialMeta";
 import { track } from "@/lib/logger/track";
 import TermsViewLogger from "./TermsViewLogger";
-import { ensureTrialStart } from "@/lib/logger/ensureTrialStart";
+import { requirePid } from "@/lib/logger/requirePid";
+import { requireRid } from "@/lib/logger/requireRid";
 
-type SearchParams = { productId?: string; returnTo?: string };
+type SearchParams = { pid?: string; rid?: string; productId?: string; returnTo?: string };
 
 type Props = {
   params:
@@ -17,24 +18,24 @@ export default async function TermsPage({ params, searchParams }: Props) {
   const p = await params;
   const sp = await searchParams;
 
+  const pid = requirePid(sp);
+  const rid = requireRid(sp);
+
   const trial = getTrialMeta(p);
-  const trialRunId = await ensureTrialStart(trial);
-  const trialWithRun = { ...trial, trialRunId };
+  const trialWithRun = { ...trial, participantId: pid, trialRunId: rid };
 
   const productId = sp?.productId;
   if (!productId) throw new Error("Missing productId in terms");
 
   const baseUrl = `/${p.phase}/${p.taskSetId}/${p.taskVersion}/${p.trialId}`;
 
-  const fallback = `${baseUrl}/confirm?productId=${encodeURIComponent(productId)}`;
+  const fallback = `${baseUrl}/confirm?` + new URLSearchParams({ pid, rid, productId }).toString();
   const returnTo = sp?.returnTo ?? fallback;
 
   const ok =
     returnTo.startsWith(`${baseUrl}/confirm`) || returnTo.startsWith(`${baseUrl}/checkout`);
 
-  if (!ok) {
-    throw new Error("Invalid returnTo in terms");
-  }
+  if (!ok) throw new Error("Invalid returnTo in terms");
 
   async function logView() {
     "use server";
@@ -44,6 +45,10 @@ export default async function TermsPage({ params, searchParams }: Props) {
   return (
     <main className="p-6 space-y-6">
       <h1 className="text-xl font-bold">解約・重要条件</h1>
+
+      <div className="text-xs text-gray-500 break-words">
+        pid: {pid} / rid: {rid}
+      </div>
 
       <TermsViewLogger logView={logView} />
 
@@ -67,7 +72,7 @@ export default async function TermsPage({ params, searchParams }: Props) {
           "use server";
           await track(trialWithRun, {
             page: "terms",
-            type: "back_to_confirm",
+            type: "back_to_previous",
             payload: { productId },
           });
           redirect(returnTo);

@@ -1,9 +1,10 @@
 import { redirect } from "next/navigation";
 import { getTrialMeta } from "@/lib/logger/getTrialMeta";
 import { track } from "@/lib/logger/track";
-import { ensureTrialStart } from "@/lib/logger/ensureTrialStart";
+import { requirePid } from "@/lib/logger/requirePid";
+import { requireRid } from "@/lib/logger/requireRid";
 
-type SearchParams = { productId?: string; returnTo?: string };
+type SearchParams = { pid?: string; rid?: string; productId?: string; returnTo?: string };
 type Props = {
   params:
     | { phase: string; taskSetId: string; taskVersion: string; trialId: string }
@@ -15,15 +16,18 @@ export default async function GatePage({ params, searchParams }: Props) {
   const p = await params;
   const sp = await searchParams;
 
+  const pid = requirePid(sp);
+  const rid = requireRid(sp);
+
   const trial = getTrialMeta(p);
-  const trialRunId = await ensureTrialStart(trial);
-  const trialWithRun = { ...trial, trialRunId };
+  const trialWithRun = { ...trial, participantId: pid, trialRunId: rid };
 
   const productId = sp?.productId;
   if (!productId) throw new Error("Missing productId in gate");
 
   const baseUrl = `/${p.phase}/${p.taskSetId}/${p.taskVersion}/${p.trialId}`;
-  const returnTo = sp?.returnTo ?? `${baseUrl}/terms?productId=${encodeURIComponent(productId)}`;
+  const returnTo =
+    sp?.returnTo ?? `${baseUrl}/terms?` + new URLSearchParams({ pid, rid, productId }).toString();
 
   async function proceed() {
     "use server";
