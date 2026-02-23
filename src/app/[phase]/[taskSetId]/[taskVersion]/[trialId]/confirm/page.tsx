@@ -10,7 +10,6 @@ import { requireRid } from "@/lib/logger/requireRid";
 type SearchParams = {
   pid?: string;
   rid?: string;
-
   productId?: string;
   shippingId?: string;
   addonGiftWrap?: string;
@@ -38,8 +37,8 @@ export default async function ConfirmPage({ params, searchParams }: Props) {
   const pid = requirePid(sp);
   const rid = requireRid(sp);
 
-  const trial = getTrialMeta(p);
-  const trialWithRun = { ...trial, participantId: pid, trialRunId: rid };
+  const baseTrial = getTrialMeta(p);
+  const trial = { ...baseTrial, participantId: pid, trialRunId: rid };
 
   const isPressure = trial.strategy === "pressure";
   const isObstruction = trial.strategy === "obstruction";
@@ -58,7 +57,7 @@ export default async function ConfirmPage({ params, searchParams }: Props) {
 
   async function logPageView() {
     "use server";
-    await track(trialWithRun, {
+    await track(trial, {
       page: "confirm",
       type: "page_view",
       payload: { productId, shippingId, addonGiftWrap },
@@ -79,7 +78,7 @@ export default async function ConfirmPage({ params, searchParams }: Props) {
       ) : null}
 
       <div className="text-xs text-gray-500 break-words">
-        pid: {pid} / rid: {rid} / trial: {p.phase}/{p.taskSetId}/{p.taskVersion}/{p.trialId}
+        trial: {p.phase}/{p.taskSetId}/{p.taskVersion}/{p.trialId} / pid={pid} / rid={rid}
       </div>
 
       <form action={logPageView}>
@@ -94,7 +93,7 @@ export default async function ConfirmPage({ params, searchParams }: Props) {
           <form
             action={async () => {
               "use server";
-              await track(trialWithRun, {
+              await track(trial, {
                 page: "confirm",
                 type: "click_expand_breakdown",
                 payload: { productId },
@@ -114,15 +113,15 @@ export default async function ConfirmPage({ params, searchParams }: Props) {
         <div className="text-sm text-gray-700">
           ギフト包装: {addonGiftWrap ? "ON" : "OFF"}（¥{yen(addonPrice)}）
         </div>
+
         <div className="pt-2 border-t font-semibold">合計: ¥{yen(total)}</div>
       </section>
 
       <div className="flex flex-wrap gap-3">
-        {/* checkoutへ戻る */}
         <form
           action={async () => {
             "use server";
-            await track(trialWithRun, {
+            await track(trial, {
               page: "confirm",
               type: "back_to_checkout",
               payload: { productId },
@@ -144,15 +143,10 @@ export default async function ConfirmPage({ params, searchParams }: Props) {
           </button>
         </form>
 
-        {/* termsへ */}
         <form
           action={async () => {
             "use server";
-            await track(trialWithRun, {
-              page: "confirm",
-              type: "go_terms",
-              payload: { productId },
-            });
+            await track(trial, { page: "confirm", type: "go_terms", payload: { productId } });
 
             const qsConfirm = new URLSearchParams({
               pid,
@@ -179,15 +173,14 @@ export default async function ConfirmPage({ params, searchParams }: Props) {
         </form>
       </div>
 
-      {/* 確定 */}
       <form
         action={async () => {
           "use server";
 
-          const confirmedImportantInfo = await hasViewedTerms(trialWithRun);
-          const totalTimeMs = await calcTotalTimeMs(trialWithRun);
+          const confirmedImportantInfo = await hasViewedTerms(trial);
+          const totalTimeMs = await calcTotalTimeMs(trial);
 
-          await track(trialWithRun, {
+          await track(trial, {
             page: "confirm",
             type: "submit_confirm",
             payload: { productId, shippingId, addonGiftWrap, totalYen: total },
@@ -196,14 +189,13 @@ export default async function ConfirmPage({ params, searchParams }: Props) {
           const isInappropriate = !confirmedImportantInfo;
 
           await saveTrialSummary({
-            meta: trialWithRun,
+            meta: trial,
             isInappropriate,
             confirmedImportantInfo,
             totalTimeMs,
-            extras: { pid, rid, productId, shippingId, addonGiftWrap, totalYen: total },
+            extras: { productId, shippingId, addonGiftWrap, totalYen: total },
           });
 
-          // 次の試行へ
           redirect(`${baseUrl}/product?` + new URLSearchParams({ pid }).toString());
         }}
       >

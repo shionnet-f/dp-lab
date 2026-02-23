@@ -874,3 +874,76 @@ trialId は条件参照キーであり、試行境界ではない。
 - Commit22：CSV出力機能
 - Commit23：最小分析スクリプト
 - Commit24：実験運用手順の固定
+
+## Commit 20: trialRunId(rid) を境界に判定ロジックを統一
+
+### 目的
+
+これまでの暫定境界（「直近 submit_confirm 以降」など）では、
+同一trialIdを繰り返した場合や状態が揺れた場合に、過去ログ汚染の余地が残っていた。
+
+Commit20では、**1試行＝1 rid** を境界として採用し、
+以下の判定をすべて rid 基準に統一することで、試行の独立性を保証する。
+
+- confirmedImportantInfo（terms閲覧の有無）
+- totalTimeMs（試行時間）
+- isInappropriate（confirmedImportantInfo から派生）
+
+---
+
+### 実装内容
+
+#### 1. TrialMetaに participantId / trialRunId を正規化
+
+- `TrialMeta` に `participantId(pid)` と `trialRunId(rid)` を持たせる前提に寄せた
+- 以降のログは `meta.trial` に pid/rid を含む完全形で保存される
+
+#### 2. ensureTrialStart を「rid確定関数」として固定
+
+- product が入口となる想定で、rid が無い場合はここで新規発行
+- 同時に `trial_start` を記録して「試行開始」を確定する
+
+#### 3. 判定ロジックを rid 境界に統一
+
+- `hasViewedTerms`：`meta.trial.trialRunId === rid` の `view_terms` が存在するか
+- `calcTotalTimeMs`：同 rid の `trial_start.ts` を起点に `Date.now()` との差分を返す
+
+#### 4. URL で pid/rid を持ち回す
+
+- checkout/confirm/terms/gate を pid/rid 必須（欠損は fail-fast）
+- これにより、試行境界の曖昧さを排除し、ログ汚染を構造的に防止する
+
+---
+
+### 設計判断
+
+#### なぜ rid を導入するか
+
+- 「同一trialIdの複数回実行」でもログを混ぜないため
+- セッションやCookieに依存せず、**実験装置として再現性の高い境界**を作るため
+- 境界を “ログの並び順” で推測するのではなく、**IDで確定**させるため
+
+#### なぜURL方式か
+
+- 実験は実験室PCで1名ずつ実施し、pre/postの別日実施・途中離脱は想定しない
+- Cookieやセッション管理を増やすより、運用が単純で事故が少ない
+- URLにpid/ridが見えることで、動作確認・ログ検証が容易
+
+---
+
+### 動作確認（Done条件）
+
+- product?pid=xxx から完走すると、1試行内の EventLog 全行に同一 rid が付与される
+- TrialSummary に pid/rid が含まれ、集約が試行単位で成立する
+- terms未閲覧で確定 → confirmedImportantInfo=false / isInappropriate=true
+- terms閲覧後に確定 → confirmedImportantInfo=true / isInappropriate=false
+- 同一trialIdを連続実行しても、過去の view_terms が混入しない
+- totalTimeMs > 0 が安定して保存される
+
+---
+
+### 次
+
+- Commit21: 参加者開始導線（startページ/運用導線の整備）
+- Commit22: エクスポート（CSVなど）と集計準備
+- Commit23-24: 実験運用の最終固定（手順書/チェックリスト整備、最小ブラッシュアップ）
