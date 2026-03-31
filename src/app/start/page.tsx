@@ -29,7 +29,7 @@ export default function StartPage() {
             return;
           }
           // まず Home に渡す（Home から各trialにpid付きで入れる）
-          router.push(`/?pid=${encodeURIComponent(v)}`);
+          router.push(`/home/?pid=${encodeURIComponent(v)}`);
         }}
       >
         次へ
